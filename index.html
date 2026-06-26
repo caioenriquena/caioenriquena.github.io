@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab Kerberoasting e Hardening</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #4b5563;
+      --line: #d7dce5;
+      --accent: #0f766e;
+      --danger: #b91c1c;
+      --code: #0f172a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      letter-spacing: 0;
+      overflow: hidden;
+    }
+
+    body {
+      height: 100vh;
+    }
+
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      padding: 3.2vh 4vw 5vh;
+      grid-template-rows: auto 1fr auto;
+      gap: 2vh;
+    }
+
+    .slide.active {
+      display: grid;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1.6vh;
+    }
+
+    .kicker {
+      color: var(--accent);
+      font-size: clamp(14px, 1.1vw, 20px);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0.6vh 0 0;
+      font-size: clamp(34px, 4.2vw, 72px);
+      line-height: 1.03;
+    }
+
+    h2 {
+      margin: 0.5vh 0 0;
+      font-size: clamp(26px, 2.7vw, 48px);
+      line-height: 1.08;
+    }
+
+    p,
+    li {
+      font-size: clamp(20px, 1.65vw, 32px);
+      line-height: 1.32;
+    }
+
+    p {
+      margin: 0.8vh 0;
+      color: var(--muted);
+    }
+
+    ul {
+      margin: 1.2vh 0 0;
+      padding-left: 1.4em;
+    }
+
+    .content {
+      min-height: 0;
+      display: grid;
+      gap: 2vh;
+      align-items: center;
+    }
+
+    .split {
+      grid-template-columns: minmax(280px, 0.58fr) minmax(560px, 1.42fr);
+    }
+
+    .image-only {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .evidence {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef2f7;
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .evidence img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .evidence.fill img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .note {
+      border-left: 8px solid var(--accent);
+      background: var(--panel);
+      padding: 2vh 2vw;
+      font-size: clamp(20px, 1.5vw, 30px);
+      line-height: 1.35;
+      color: var(--text);
+    }
+
+    .danger {
+      border-left-color: var(--danger);
+    }
+
+    .code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: clamp(17px, 1.25vw, 24px);
+      line-height: 1.35;
+      color: var(--code);
+      background: #edf0f5;
+      border: 1px solid var(--line);
+      padding: 1.4vh 1.4vw;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #6b7280;
+      font-size: clamp(13px, 1vw, 18px);
+      border-top: 1px solid var(--line);
+      padding-top: 1vh;
+    }
+
+    .progress {
+      height: 5px;
+      width: 100%;
+      background: #e5e7eb;
+      position: fixed;
+      left: 0;
+      bottom: 0;
+    }
+
+    .bar {
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+    }
+
+    .controls {
+      position: fixed;
+      right: 1vw;
+      top: 1vh;
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    button {
+      width: 44px;
+      height: 38px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 900px) {
+      .slide {
+        padding: 2.5vh 4vw 5vh;
+      }
+
+      .split {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="controls" aria-label="Controles">
+    <button id="prev" title="Slide anterior">‹</button>
+    <button id="next" title="Proximo slide">›</button>
+  </div>
+
+  <main class="deck">
+    <section class="slide active">
+      <header>
+        <div class="kicker">Laboratorio academico</div>
+        <h1>Kerberoasting em Active Directory e Hardening</h1>
+      </header>
+      <div class="content split">
+        <div>
+          <p>Demonstracao em ambiente controlado usando Windows Server como Domain Controller e Kali como maquina de teste.</p>
+          <div class="note">Ideia central: uma conta comum pode solicitar ticket Kerberos para uma conta de servico com SPN. Se a senha for fraca, o hash pode ser quebrado offline.</div>
+        </div>
+        <div class="evidence">
+          <img src="../documentacao/prints/00-hyperv-duas-vms.png" alt="Hyper-V com Windows Server e Kali">
+        </div>
+      </div>
+      <footer><span>Ambiente</span><span class="counter"></span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Conceito</div>
+        <h2>O que é Kerberoasting?</h2>
+      </header>
+      <div class="content">
+        <div class="note">Analogia: Alice é uma funcionária comum. Ela pede na recepção um crachá para visitar a sala do SQL. O crachá é válido, mas foi protegido com uma chave baseada na senha da conta de serviço.</div>
+        <ul>
+          <li>Funcionário comum: <b>alice</b></li>
+          <li>Recepção: <b>Domain Controller</b></li>
+          <li>Sala/serviço: <b>MSSQLSvc/sql.lab.local:1433</b></li>
+          <li>Responsável pela sala: <b>svc_sql</b></li>
+          <li>Crachá temporário: <b>ticket Kerberos TGS</b></li>
+        </ul>
+      </div>
+      <footer><span>Conceito</span><span class="counter"></span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Windows Server</div>
+        <h2>AD DS e DNS no Domain Controller</h2>
+      </header>
+      <div class="content split">
+        <div>
+          <p>O Windows Server atua como controlador do domínio <b>lab.local</b>.</p>
+          <p>AD DS autentica usuários e armazena objetos do domínio. DNS permite localizar serviços e o próprio DC.</p>
+        </div>
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/01-server-manager-ad-ds-dns.png" alt="Server Manager com AD DS e DNS">
+        </div>
+      </div>
+      <footer><span>Preparação Windows</span><span class="counter"></span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Windows Server</div>
+        <h2>Usuários do laboratório</h2>
+      </header>
+      <div class="content split">
+        <div>
+          <ul>
+            <li><b>Alice</b>: conta comum usada no ataque.</li>
+            <li><b>bob</b>: usuário comum adicional.</li>
+            <li><b>svc_sql</b>: conta de serviço vulnerável.</li>
+          </ul>
+        </div>
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/03-aduc-usuarios-lab.png" alt="Usuários do laboratório no ADUC">
+        </div>
+      </div>
+      <footer><span>Preparação Windows</span><span class="counter"></span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Falha proposital</div>
+        <h2>SPN em svc_sql</h2>
+      </header>
+      <div class="content split">
+        <div>
+          <p>O SPN identifica um serviço no Active Directory:</p>
+          <div class="code">MSSQLSvc/sql.lab.local:1433</div>
+          <p>Contas com SPN podem receber tickets Kerberos de serviço, chamados TGS.</p>
+        </div>
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/04-svc-sql-spn.png" alt="SPN configurado em svc_sql">
+        </div>
+      </div>
+      <footer><span>Preparação Windows</span><span class="counter"></span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Falha proposital</div>
+        <h2>svc_sql em Domain Admins</h2>
+      </header>
+      <div class="content split">
+        <div>
+          <div class="note danger">Esta é a configuração insegura do laboratório. Uma conta de serviço não deveria ter privilégio administrativo no domínio.</div>
+          <p>Se a senha de <b>svc_sql</b> for descoberta, o impacto pode virar controle do domínio.</p>
+        </div>
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/05-svc-sql-domain-admins.png" alt="svc_sql membro de Domain Admins">
+        </div>
+      </div>
+      <footer><span>Falha configurada</span><span class="counter"></span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Kali</div>
+        <h2>Conectividade com o Domain Controller</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/kali/01-ping-dc.png" alt="Ping do Kali para o DC">
+        </div>
+      </div>
+      <footer><span>Validação</span><span>0% packet loss</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Kali</div>
+        <h2>DNS resolvendo lab.local</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/kali/02-nslookup-lab-local.png" alt="nslookup lab.local">
+        </div>
+      </div>
+      <footer><span>Validação</span><span>DNS do AD funcionando</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Kali</div>
+        <h2>Conta comum Alice consultando o domínio</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/kali/03-getadusers-alice.png" alt="GetADUsers com Alice">
+        </div>
+      </div>
+      <footer><span>Enumeração</span><span>Alice não é admin</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Kerberoasting</div>
+        <h2>GetUserSPNs encontra svc_sql</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/kali/04-getuserspns-svc-sql.png" alt="GetUserSPNs encontrando svc_sql">
+        </div>
+      </div>
+      <footer><span>Etapa central</span><span>SPN + TGS</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Kerberoasting</div>
+        <h2>Hash Kerberos salvo</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/kali/05-hashes-txt-gerado.png" alt="hashes.txt gerado">
+        </div>
+      </div>
+      <footer><span>Extração</span><span>Formato $krb5tgs$</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Hashcat</div>
+        <h2>Wordlist do laboratório</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/kali/06-wordlist-lab.png" alt="wordlist.txt">
+        </div>
+      </div>
+      <footer><span>Quebra offline</span><span>Lista didática</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Hashcat</div>
+        <h2>Status: Cracked</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/kali/07-hashcat-cracked-password.png" alt="Hashcat cracked">
+        </div>
+      </div>
+      <footer><span>Resultado</span><span>Password123!</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Hashcat</div>
+        <h2>Senha recuperada com --show</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/kali/08-hashcat-show-password.png" alt="Hashcat show password">
+        </div>
+      </div>
+      <footer><span>Prova final</span><span>svc_sql:Password123!</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Impacto</div>
+        <h2>Por que isso é grave?</h2>
+      </header>
+      <div class="content">
+        <div class="note danger">O ataque começou com uma conta comum, mas terminou revelando a senha de uma conta de serviço que estava em Domain Admins.</div>
+        <div class="code">alice -> solicita TGS
+TGS -> salvo em hashes.txt
+Hashcat -> recupera Password123!
+svc_sql em Domain Admins -> impacto crítico</div>
+      </div>
+      <footer><span>Impacto</span><span>Escalação por má configuração</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Hardening</div>
+        <h2>Remover svc_sql de Domain Admins</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/09-hardening-remover-domain-admins.gif" alt="GIF removendo svc_sql de Domain Admins">
+        </div>
+      </div>
+      <footer><span>Menor privilégio</span><span>GIF animado</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Hardening</div>
+        <h2>Resetar senha comprometida</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/10-hardening-reset-senha-svc-sql.gif" alt="GIF resetando a senha da svc_sql">
+        </div>
+      </div>
+      <footer><span>Senha forte</span><span>GIF animado</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Hardening</div>
+        <h2>Revisar opções da conta</h2>
+      </header>
+      <div class="content image-only">
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/11-hardening-account-options-svc-sql.png" alt="Account options svc_sql">
+        </div>
+      </div>
+      <footer><span>Conta de serviço</span><span>Evitar exceções perigosas</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Hardening</div>
+        <h2>SPN continua existindo</h2>
+      </header>
+      <div class="content split">
+        <div>
+          <p>SPN não é automaticamente uma falha.</p>
+          <p>O problema era o conjunto: <b>SPN + senha fraca + Domain Admins</b>.</p>
+        </div>
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/12-hardening-spn-ainda-existe.png" alt="SPN ainda existe">
+        </div>
+      </div>
+      <footer><span>Hardening</span><span>Corrigir risco, não apagar o serviço</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Detecção</div>
+        <h2>Event ID 4769</h2>
+      </header>
+      <div class="content split">
+        <div>
+          <p>O evento 4769 registra solicitação de ticket Kerberos de serviço, TGS.</p>
+          <p>Muitos eventos para várias contas de serviço podem indicar atividade suspeita de Kerberoasting.</p>
+        </div>
+        <div class="evidence fill">
+          <img src="../documentacao/prints/windows/13-hardening-evento-4769-kerberos.png" alt="Event Viewer 4769">
+        </div>
+      </div>
+      <footer><span>Monitoramento</span><span>4769</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <div class="kicker">Conclusão</div>
+        <h2>Como corrigir o risco</h2>
+      </header>
+      <div class="content">
+        <ul>
+          <li>Remover contas de serviço de grupos privilegiados.</li>
+          <li>Usar senhas longas, aleatórias e únicas.</li>
+          <li>Preferir gMSA quando possível.</li>
+          <li>Revisar SPNs periodicamente.</li>
+          <li>Monitorar eventos Kerberos, principalmente 4769.</li>
+        </ul>
+        <div class="note">Kerberoasting mostra que o risco muitas vezes vem de configuração fraca, não de uma falha nova do Windows.</div>
+      </div>
+      <footer><span>Fim</span><span class="counter"></span></footer>
+    </section>
+  </main>
+
+  <div class="progress"><div class="bar" id="bar"></div></div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const counters = Array.from(document.querySelectorAll(".counter"));
+    const bar = document.getElementById("bar");
+    let current = 0;
+
+    function show(index) {
+      current = Math.max(0, Math.min(index, slides.length - 1));
+      slides.forEach((slide, idx) => slide.classList.toggle("active", idx === current));
+      counters.forEach((counter) => {
+        counter.textContent = `${current + 1}/${slides.length}`;
+      });
+      bar.style.width = `${((current + 1) / slides.length) * 100}%`;
+      location.hash = `slide-${current + 1}`;
+    }
+
+    document.getElementById("prev").addEventListener("click", () => show(current - 1));
+    document.getElementById("next").addEventListener("click", () => show(current + 1));
+
+    document.addEventListener("keydown", (event) => {
+      if (["ArrowRight", "PageDown", " "].includes(event.key)) {
+        event.preventDefault();
+        show(current + 1);
+      }
+      if (["ArrowLeft", "PageUp"].includes(event.key)) {
+        event.preventDefault();
+        show(current - 1);
+      }
+      if (event.key.toLowerCase() === "f") {
+        document.documentElement.requestFullscreen?.();
+      }
+    });
+
+    const match = location.hash.match(/slide-(\d+)/);
+    show(match ? Number(match[1]) - 1 : 0);
+  </script>
+</body>
+</html>
