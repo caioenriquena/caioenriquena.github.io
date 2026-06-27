@@ -178,8 +178,10 @@
     transition: all .2s;
     letter-spacing: .05em;
   }
-  .phase-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,.08); }
-  .phase-btn.done { border-color: var(--green); color: var(--green); background: rgba(78,203,113,.07); }
+  .phase-btn.done:not(.active) { border-color: var(--border); color: var(--muted); background: var(--bg2); }
+  .phase-btn.done:not(.active)::after { content: '✓'; margin-left: 6px; color: var(--green); font-weight: 700; }
+  .phase-btn.active,
+  .phase-btn.done.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,.08); }
   .phase-btn.locked { opacity: .35; cursor: not-allowed; }
 
   /* ── PHASE SECTIONS ── */
@@ -2004,6 +2006,7 @@ function syncNavigation() {
     button.classList.toggle('done', completedPhases.has(index));
     button.classList.toggle('locked', !phaseUnlocked(index));
     button.classList.toggle('active', index === currentPhase);
+    button.setAttribute('aria-current', index === currentPhase ? 'step' : 'false');
   });
   updateProgress();
 }
