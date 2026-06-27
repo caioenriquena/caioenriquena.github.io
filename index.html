@@ -1006,15 +1006,15 @@
     <div class="evidence-heading">Evidências reais // montagem do ambiente</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="assets/prints/00-hyperv-duas-vms.png" alt="Hyper-V com as máquinas Windows Server e Kali Linux" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/00-hyperv-duas-vms.png" alt="Hyper-V com as máquinas Windows Server e Kali Linux" data-zoomable>
         <figcaption>Topologia do laboratório no Hyper-V: o Windows Server funciona como DC e o Kali como estação de teste.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/windows/01-server-manager-ad-ds-dns.png" alt="Server Manager com as funções AD DS e DNS" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/01-server-manager-ad-ds-dns.png" alt="Server Manager com as funções AD DS e DNS" data-zoomable>
         <figcaption>O Domain Controller oferece AD DS e DNS, serviços centrais para autenticação e localização do domínio.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/windows/03-aduc-usuarios-lab.png" alt="Usuários Alice, Bob e svc_sql no Active Directory" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/03-aduc-usuarios-lab.png" alt="Usuários Alice, Bob e svc_sql no Active Directory" data-zoomable>
         <figcaption>Objetos usados no cenário: Alice e Bob como usuários e svc_sql como conta de serviço.</figcaption>
       </figure>
     </div>
@@ -1330,11 +1330,11 @@
     <div class="evidence-heading">Evidências reais // origem da vulnerabilidade</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="assets/prints/windows/04-svc-sql-spn.png" alt="Atributo servicePrincipalName da conta svc_sql" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/04-svc-sql-spn.png" alt="Atributo servicePrincipalName da conta svc_sql" data-zoomable>
         <figcaption>O atributo servicePrincipalName associa MSSQLSvc/sql.lab.local:1433 à conta svc_sql, permitindo que o KDC emita um ticket para esse serviço.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/windows/05-svc-sql-domain-admins.png" alt="Conta svc_sql associada ao grupo Domain Admins" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/05-svc-sql-domain-admins.png" alt="Conta svc_sql associada ao grupo Domain Admins" data-zoomable>
         <figcaption>A má configuração proposital aumenta o impacto: svc_sql aparece como membro de Domain Admins.</figcaption>
       </figure>
     </div>
@@ -1432,23 +1432,23 @@ Bob                    2026-05-24 11:12:49      ...<br></span>
     <div class="evidence-heading">Evidências reais // execução no Kali</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="assets/prints/kali/01-ping-dc.png" alt="Ping do Kali para o Domain Controller" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/kali/01-ping-dc.png" alt="Ping do Kali para o Domain Controller" data-zoomable>
         <figcaption>O ping confirma comunicação IP com o DC em 172.24.173.229.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/kali/02-nslookup-lab-local.png" alt="Resolução DNS do domínio lab.local" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/kali/02-nslookup-lab-local.png" alt="Resolução DNS do domínio lab.local" data-zoomable>
         <figcaption>O DNS do DC resolve lab.local, requisito importante para o funcionamento correto do AD.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/kali/03-getadusers-alice.png" alt="Enumeração de usuários com GetADUsers" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/kali/03-getadusers-alice.png" alt="Enumeração de usuários com GetADUsers" data-zoomable>
         <figcaption>A conta comum Alice autentica e consulta usuários do domínio, incluindo svc_sql.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/kali/04-getuserspns-svc-sql.png" alt="Solicitação do TGS da conta svc_sql" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/kali/04-getuserspns-svc-sql.png" alt="Solicitação do TGS da conta svc_sql" data-zoomable>
         <figcaption>GetUserSPNs localiza o SPN, solicita o ticket e grava o material Kerberos em hashes.txt.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/kali/05-hashes-txt-gerado.png" alt="Arquivo hashes.txt contendo os dados cifrados do ticket Kerberos" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/kali/05-hashes-txt-gerado.png" alt="Arquivo hashes.txt contendo os dados cifrados do ticket Kerberos" data-zoomable>
         <figcaption>O marcador $krb5tgs$ identifica a representação do ticket cifrado em formato aceito pelo Hashcat; o nome hashes.txt é uma convenção da ferramenta.</figcaption>
       </figure>
     </div>
@@ -1535,15 +1535,15 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
     <div class="evidence-heading">Evidências reais // quebra offline</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="assets/prints/kali/06-wordlist-lab.png" alt="Wordlist usada na prova de conceito" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/kali/06-wordlist-lab.png" alt="Wordlist usada na prova de conceito" data-zoomable>
         <figcaption>A wordlist contém poucas senhas candidatas, incluindo a senha fraca configurada no laboratório.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/kali/07-hashcat-cracked-password.png" alt="Hashcat mostrando o status Cracked" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/kali/07-hashcat-cracked-password.png" alt="Hashcat mostrando o status Cracked" data-zoomable>
         <figcaption>O modo 13100 identifica o TGS-REP e retorna Status: Cracked.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/kali/08-hashcat-show-password.png" alt="Hashcat exibindo a senha Password123" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/kali/08-hashcat-show-password.png" alt="Hashcat exibindo a senha Password123" data-zoomable>
         <figcaption>O comando --show relaciona o material Kerberos à senha Password123!, comprovando o risco.</figcaption>
       </figure>
     </div>
@@ -1617,23 +1617,23 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
     <div class="evidence-heading">Evidências reais // aplicação do hardening</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="assets/prints/windows/09-hardening-remover-domain-admins.gif" alt="Remoção de svc_sql do grupo Domain Admins" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/09-hardening-remover-domain-admins.gif" alt="Remoção de svc_sql do grupo Domain Admins" data-zoomable>
         <figcaption>Menor privilégio: remoção de svc_sql do grupo Domain Admins.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/windows/10-hardening-reset-senha-svc-sql.gif" alt="Redefinição da senha de svc_sql" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/10-hardening-reset-senha-svc-sql.gif" alt="Redefinição da senha de svc_sql" data-zoomable>
         <figcaption>Rotação da credencial que foi recuperada durante a prova de conceito.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/windows/11-hardening-account-options-svc-sql.png" alt="Opções de segurança da conta svc_sql" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/11-hardening-account-options-svc-sql.png" alt="Opções de segurança da conta svc_sql" data-zoomable>
         <figcaption>Revisão das opções da conta para eliminar configurações inseguras.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/windows/12-hardening-spn-ainda-existe.png" alt="SPN mantido após o hardening" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/12-hardening-spn-ainda-existe.png" alt="SPN mantido após o hardening" data-zoomable>
         <figcaption>O SPN pode continuar existindo quando o serviço precisa dele; senha forte, menor privilégio, criptografia moderna e monitoramento reduzem o risco.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="assets/prints/windows/13-hardening-evento-4769-kerberos.png" alt="Evento 4769 no Visualizador de Eventos" data-zoomable loading="lazy" decoding="async">
+        <img src="../documentacao/prints/windows/13-hardening-evento-4769-kerberos.png" alt="Evento 4769 no Visualizador de Eventos" data-zoomable>
         <figcaption>O evento 4769 registra solicitações TGS e oferece telemetria para investigar padrões anormais.</figcaption>
       </figure>
     </div>
