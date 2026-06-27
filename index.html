@@ -688,6 +688,7 @@
     }
 
     .progress-bar-wrap { max-width: 330px; }
+    .reset-progress { min-height: 44px; }
 
     #phase-nav {
       display: grid;
@@ -846,10 +847,10 @@
     .evidence-card figcaption { padding-top: 9px; }
 
     .viewer-toolbar { padding: 8px; gap: 7px; }
-    .viewer-title { max-width: calc(100vw - 205px); font-size: 10px; }
+    .viewer-title { max-width: calc(100vw - 220px); font-size: 10px; }
     .viewer-controls { gap: 4px; }
-    .viewer-control { width: 34px; }
-    .viewer-percent { width: 50px; }
+    .viewer-control { width: 44px; height: 44px; }
+    .viewer-percent { width: 52px; height: 44px; }
     .viewer-stage { padding: 10px; }
     .viewer-image { max-width: 94vw; max-height: 72vh; }
     .viewer-caption { padding: 10px 12px; }
@@ -1003,15 +1004,15 @@
     <div class="evidence-heading">Evidências reais // montagem do ambiente</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="../documentacao/prints/00-hyperv-duas-vms.png" alt="Hyper-V com as máquinas Windows Server e Kali Linux" data-zoomable>
+        <img src="assets/prints/00-hyperv-duas-vms.png" alt="Hyper-V com as máquinas Windows Server e Kali Linux" data-zoomable loading="lazy" decoding="async">
         <figcaption>Topologia do laboratório no Hyper-V: o Windows Server funciona como DC e o Kali como estação de teste.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/01-server-manager-ad-ds-dns.png" alt="Server Manager com as funções AD DS e DNS" data-zoomable>
+        <img src="assets/prints/windows/01-server-manager-ad-ds-dns.png" alt="Server Manager com as funções AD DS e DNS" data-zoomable loading="lazy" decoding="async">
         <figcaption>O Domain Controller oferece AD DS e DNS, serviços centrais para autenticação e localização do domínio.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/03-aduc-usuarios-lab.png" alt="Usuários Alice, Bob e svc_sql no Active Directory" data-zoomable>
+        <img src="assets/prints/windows/03-aduc-usuarios-lab.png" alt="Usuários Alice, Bob e svc_sql no Active Directory" data-zoomable loading="lazy" decoding="async">
         <figcaption>Objetos usados no cenário: Alice e Bob como usuários e svc_sql como conta de serviço.</figcaption>
       </figure>
     </div>
@@ -1041,7 +1042,7 @@
 
     <div class="analogy" style="margin: 14px 0;">
       <p class="analogy-title">🏰 Metáfora</p>
-      <p>Imagine que o castelo tem várias salas. Cada sala tem uma <strong>placa na porta</strong> com o nome da sala, o número e o responsável. O SPN é essa placa. Sem placa, o DC não sabe que aquela sala (serviço) existe. Com placa, qualquer funcionário pode pedir um crachá para visitá-la.</p>
+      <p>Imagine que o castelo tem várias salas. Cada sala tem uma <strong>placa na porta</strong> com o nome da sala, o número e o responsável. O SPN é essa placa. Sem um SPN válido, o KDC não consegue identificar aquele serviço para emitir seu ticket Kerberos. Com a placa registrada, um usuário autenticado pode pedir um crachá para aquela sala.</p>
     </div>
 
     <p style="margin-bottom: 12px;">No laboratório, o SPN configurado na conta <code>svc_sql</code> é:</p>
@@ -1060,10 +1061,10 @@
 
     <table>
       <tr><th>Pergunta</th><th>Resposta</th></tr>
-      <tr><td>Quem cria o SPN?</td><td>O administrador do domínio, ao registrar um serviço</td></tr>
+      <tr><td>Quem cria o SPN?</td><td>Um administrador ou um serviço com permissão para registrar o atributo no AD</td></tr>
       <tr><td>Onde fica armazenado?</td><td>No atributo <code>servicePrincipalName</code> da conta no AD</td></tr>
       <tr><td>Por que o SPN importa pro ataque?</td><td>Sem SPN, o DC não emite TGS para aquela conta — ou seja, <strong>sem SPN, não há Kerberoasting possível</strong></td></tr>
-      <tr><td>O SPN em si é o problema?</td><td>Não. O problema é SPN + senha fraca + privilégio alto <em>ao mesmo tempo</em></td></tr>
+      <tr><td>O SPN em si é o problema?</td><td>Não. O SPN permite identificar o serviço e solicitar o ticket. Senha fraca facilita a quebra offline; privilégio alto aumenta o impacto.</td></tr>
     </table>
   </div>
 
@@ -1137,20 +1138,20 @@
         <text x="275" y="70" text-anchor="middle" font-size="11" fill="#c9a84c" font-weight="600">② AS_REP</text>
       </g>
 
-      <!-- 3. TGT_REQ: usuario → TGS -->
+      <!-- 3. TGS_REQ: usuario → TGS -->
       <g class="kerb-arrow" onclick="kerbClick(2)" style="cursor:pointer">
         <line x1="105" y1="82" x2="485" y2="122" stroke="#9b6ee8" stroke-width="2"/>
         <polygon points="485,122 471,116 474,125" fill="#9b6ee8"/>
         <rect x="225" y="90" width="116" height="20" rx="4" fill="#111524" stroke="#9b6ee8" stroke-width="1" opacity="0.9"/>
-        <text x="283" y="104" text-anchor="middle" font-size="11" fill="#9b6ee8" font-weight="600">③ TGT_REQ (TGT)</text>
+        <text x="283" y="104" text-anchor="middle" font-size="11" fill="#9b6ee8" font-weight="600">③ TGS_REQ</text>
       </g>
 
-      <!-- 4. TGT_REP: TGS → usuario — ESTA É A SETA CRÍTICA -->
+      <!-- 4. TGS_REP: TGS → usuario — ESTA É A SETA CRÍTICA -->
       <g class="kerb-arrow" onclick="kerbClick(3)" style="cursor:pointer">
         <line x1="485" y1="148" x2="108" y2="96" stroke="#e05555" stroke-width="2.5"/>
         <polygon points="108,96 122,90 121,99" fill="#e05555"/>
         <rect x="220" y="116" width="126" height="20" rx="4" fill="#1a0808" stroke="#e05555" stroke-width="1.5" opacity="0.95"/>
-        <text x="283" y="130" text-anchor="middle" font-size="11" fill="#e05555" font-weight="700">④ TGT_REP (TGS) ⚠️</text>
+        <text x="283" y="130" text-anchor="middle" font-size="11" fill="#e05555" font-weight="700">④ TGS_REP ⚠️</text>
       </g>
 
       <!-- 5. AP_REQ: usuario → SQL -->
@@ -1161,12 +1162,12 @@
         <text x="263" y="192" text-anchor="middle" font-size="11" fill="#4ecb71" font-weight="600">⑤ AP_REQ</text>
       </g>
 
-      <!-- 6. AP_REP: SQL → usuario -->
+      <!-- 6. AP_REP opcional: SQL → usuario -->
       <g class="kerb-arrow" onclick="kerbClick(5)" style="cursor:pointer">
         <line x1="498" y1="258" x2="105" y2="130" stroke="#7a85aa" stroke-width="2"/>
         <polygon points="105,130 118,124 118,133" fill="#7a85aa"/>
         <rect x="218" y="215" width="90" height="20" rx="4" fill="#111524" stroke="#7a85aa" stroke-width="1" opacity="0.9"/>
-        <text x="263" y="229" text-anchor="middle" font-size="11" fill="#7a85aa" font-weight="600">⑥ AP_REP</text>
+        <text x="263" y="229" text-anchor="middle" font-size="11" fill="#7a85aa" font-weight="600">⑥ AP_REP opcional</text>
       </g>
 
       <!-- Linha vertical separando KDC do serviço (visual) -->
@@ -1190,7 +1191,7 @@
       </div>
     </div>
 
-    <p style="color: var(--muted); font-size: 13px; margin-top: 14px;">O TGS (etapa ④) é parcialmente cifrado com o hash da senha da conta de serviço. Isso é normal — o problema começa quando o atacante <em>salva esse ticket e tenta quebrá-lo offline</em>.</p>
+    <p style="color: var(--muted); font-size: 13px; margin-top: 14px;">No TGS-REP (etapa ④), o ticket de serviço é cifrado com uma chave de longo prazo derivada do segredo da conta de serviço. No caso RC4-HMAC do laboratório, essa chave está ligada ao hash NT da senha. Isso permite testar palpites de senha offline sem enviar cada tentativa ao DC.</p>
   </div>
 
   <script>
@@ -1201,7 +1202,7 @@
       icon: '📤',
       from: 'Usuário (alice)',
       to: 'AS — Authentication Service (KDC)',
-      desc: 'O usuário envia uma requisição de autenticação ao KDC informando sua identidade. Ainda não há senha trafegando — apenas o nome do usuário e um timestamp cifrado com o hash da senha dele.',
+      desc: 'O cliente envia uma requisição de autenticação ao KDC. Quando a pré-autenticação por senha está habilitada, como normalmente ocorre no AD, inclui um timestamp cifrado com uma chave derivada da senha. A senha em texto claro não trafega pela rede.',
       lab: null,
     },
     {
@@ -1210,25 +1211,25 @@
       icon: '🎫',
       from: 'AS (KDC)',
       to: 'Usuário (alice)',
-      desc: 'O KDC valida o usuário e entrega um <strong>TGT (Ticket Granting Ticket)</strong> — um "passe geral" temporário que prova que o usuário está autenticado. Esse TGT é cifrado com a chave do próprio KDC, então o usuário não consegue alterá-lo.',
+      desc: 'O KDC valida o cliente e entrega um <strong>TGT (Ticket Granting Ticket)</strong>. O TGT é cifrado com a chave da conta krbtgt, enquanto a parte da resposta destinada ao cliente é protegida com a chave do cliente. O TGT será usado para pedir tickets de serviço.',
       lab: null,
     },
     {
-      label: '③ TGT_REQ — Pedido de ticket de serviço',
+      label: '③ TGS_REQ — Pedido de ticket de serviço',
       color: '#9b6ee8',
       icon: '🎟️',
       from: 'Usuário (alice)',
       to: 'TGS — Ticket Granting Service (KDC)',
-      desc: 'Com o TGT em mãos, o usuário pede um ticket específico para acessar um serviço — neste caso, o SQL Server. Ele apresenta o TGT como prova de identidade e informa o SPN do serviço desejado.',
+      desc: 'Com o TGT em mãos, o cliente envia um TGS-REQ com o TGT, um autenticador e o SPN do serviço desejado. Neste laboratório, o alvo é MSSQLSvc/sql.lab.local:1433.',
       lab: null,
     },
     {
-      label: '④ TGT_REP — Entrega do TGS ⚠️ PONTO CRÍTICO',
+      label: '④ TGS_REP — Entrega do ticket de serviço ⚠️ PONTO CRÍTICO',
       color: '#e05555',
       icon: '💀',
       from: 'TGS (KDC)',
       to: 'Usuário (alice)',
-      desc: 'O KDC entrega o <strong>TGS (Ticket de Serviço)</strong> — e aqui está o problema: <strong>parte desse ticket é cifrada com o hash da senha da conta svc_sql</strong>. O KDC não questiona a intenção — qualquer usuário autenticado pode pedir esse ticket. O atacante captura esse ticket e tenta quebrar a cifra offline.',
+      desc: 'O KDC devolve o TGS-REP. O ticket de serviço incluído na resposta é cifrado com a chave de longo prazo da conta associada ao SPN. Qualquer usuário autenticado pode solicitar esse ticket; no Kerberoasting, ele é salvo para testar palpites de senha offline.',
       lab: '🎯 No laboratório: o impacket-GetUserSPNs captura exatamente este TGS e salva em hashes.txt',
     },
     {
@@ -1237,16 +1238,16 @@
       icon: '🚪',
       from: 'Usuário (alice)',
       to: 'SQL Server (svc_sql)',
-      desc: 'O usuário apresenta o TGS ao serviço real (SQL Server). O serviço consegue descriptografar o ticket com sua própria senha — e se der certo, confirma que o usuário tem permissão de acesso.',
+      desc: 'O cliente apresenta o ticket de serviço e um autenticador ao SQL Server. O serviço usa sua chave de longo prazo para abrir o ticket e autenticar o cliente. A autorização para acessar recursos é uma decisão posterior e separada.',
       lab: null,
     },
     {
-      label: '⑥ AP_REP — Confirmação de acesso',
+      label: '⑥ AP_REP — Autenticação mútua opcional',
       color: '#7a85aa',
       icon: '✅',
       from: 'SQL Server (svc_sql)',
       to: 'Usuário (alice)',
-      desc: 'O serviço confirma a autenticação e estabelece a sessão. O usuário agora está conectado ao SQL Server — sem que a senha tenha trafegado pela rede em nenhum momento.',
+      desc: 'Se o cliente solicitar autenticação mútua, o serviço responde com AP-REP para provar sua identidade ao cliente. Essa mensagem é opcional e não representa, sozinha, uma decisão de autorização.',
       lab: null,
     },
   ];
@@ -1276,7 +1277,7 @@
 
   <div class="card">
     <div class="card-title"><span class="icon">🎯</span> Por que isso é um problema?</div>
-    <p style="margin-bottom: 14px;">Três condições que, juntas, criam risco crítico:</p>
+    <p style="margin-bottom: 14px;">O SPN viabiliza a solicitação do ticket; a senha fraca torna a recuperação offline mais provável; o privilégio excessivo aumenta o impacto. As duas últimas condições não são necessárias para solicitar o TGS, mas tornam o cenário muito mais grave.</p>
     <table>
       <tr><th>#</th><th>Condição</th><th>No laboratório</th></tr>
       <tr>
@@ -1303,19 +1304,20 @@
       <tr><th>Mundo real</th><th>Kerberos</th></tr>
       <tr><td>Alice, funcionária vítima de phishing</td><td>Conta comprometida usada pelo atacante</td></tr>
       <tr><td>Recepção do castelo</td><td>Domain Controller (KDC)</td></tr>
-      <tr><td>Crachá para entrar na sala do SQL</td><td>Ticket TGS</td></tr>
+      <tr><td>Crachá para entrar na sala do SQL</td><td>Ticket de serviço entregue no TGS-REP</td></tr>
       <tr><td>Cadeado do crachá</td><td>Cifra com senha de svc_sql</td></tr>
-      <tr><td>Tentar abrir o cadeado em casa</td><td>Quebra de hash offline</td></tr>
+      <tr><td>Tentar abrir o cadeado em casa</td><td>Teste offline de senhas sobre os dados cifrados do ticket</td></tr>
     </table>
   </div>
 
   <div class="card">
     <div class="card-title"><span class="icon">🧠</span> Teste seu entendimento</div>
+    <p style="margin-bottom: 14px; color: var(--muted);"><strong>Importante:</strong> o atacante não precisa ser Domain Admin. Uma conta comum, após se autenticar, pode obter um TGT e solicitar tickets de serviço para SPNs registrados.</p>
     <div class="quiz-q">O que torna o Kerberoasting possível mesmo sem privilégios de administrador?</div>
     <div class="quiz-opts" id="q1-opts">
-      <div class="quiz-opt" onclick="quiz('q1', this, false)">O atacante precisa ser Domain Admin para requisitar um TGS.</div>
+      <div class="quiz-opt" onclick="quiz('q1', this, false)">A senha da conta de serviço trafega em texto claro pela rede.</div>
       <div class="quiz-opt" onclick="quiz('q1', this, true)">Qualquer usuário autenticado pode solicitar um TGS para contas com SPN.</div>
-      <div class="quiz-opt" onclick="quiz('q1', this, false)">O DC não valida a identidade ao entregar tickets TGT.</div>
+      <div class="quiz-opt" onclick="quiz('q1', this, false)">O DC permite solicitar um TGS sem autenticação prévia.</div>
     </div>
     <div id="q1-feedback" class="quiz-feedback">
       <strong>✅ Correto!</strong> O Kerberos permite que qualquer usuário autenticado requisite tickets de serviço. O DC não questiona a intenção — ele simplesmente entrega o ticket cifrado com a senha da conta-alvo.
@@ -1326,11 +1328,11 @@
     <div class="evidence-heading">Evidências reais // origem da vulnerabilidade</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/04-svc-sql-spn.png" alt="Atributo servicePrincipalName da conta svc_sql" data-zoomable>
-        <figcaption>O atributo servicePrincipalName registra MSSQLSvc/sql.lab.local:1433 e torna a conta elegível para receber TGS.</figcaption>
+        <img src="assets/prints/windows/04-svc-sql-spn.png" alt="Atributo servicePrincipalName da conta svc_sql" data-zoomable loading="lazy" decoding="async">
+        <figcaption>O atributo servicePrincipalName associa MSSQLSvc/sql.lab.local:1433 à conta svc_sql, permitindo que o KDC emita um ticket para esse serviço.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/05-svc-sql-domain-admins.png" alt="Conta svc_sql associada ao grupo Domain Admins" data-zoomable>
+        <img src="assets/prints/windows/05-svc-sql-domain-admins.png" alt="Conta svc_sql associada ao grupo Domain Admins" data-zoomable loading="lazy" decoding="async">
         <figcaption>A má configuração proposital aumenta o impacto: svc_sql aparece como membro de Domain Admins.</figcaption>
       </figure>
     </div>
@@ -1403,7 +1405,7 @@ Bob                    2026-05-24 11:12:49      ...<br></span>
   </div>
 
   <div class="card">
-    <div class="card-title"><span class="icon">🎟️</span> Passo 3 — Requisitar o ticket TGS</div>
+    <div class="card-title"><span class="icon">🎟️</span> Passo 3 — Requisitar o ticket de serviço</div>
     <p style="margin-bottom: 14px; color: var(--muted);">Este é o coração do ataque. <code>GetUserSPNs</code> encontra contas com SPN e requisita o ticket criptografado.</p>
     <div class="terminal">
       <div class="terminal-bar">
@@ -1415,7 +1417,7 @@ Bob                    2026-05-24 11:12:49      ...<br></span>
         <span class="t-out">ServicePrincipalName       Name     MemberOf<br>
 ──────────────────────────  ───────  ──────────────────────────────────<br></span>
         <span class="t-highlight">MSSQLSvc/sql.lab.local:1433  svc_sql  CN=Domain Admins,...</span><br><br>
-        <span class="t-ok">[-] CCache file not found. Skipping...<br>[*] Hash salvo em hashes.txt</span>
+      <span class="t-ok">[-] CCache file not found. Skipping...<br>[*] Ticket salvo no formato $krb5tgs$ em hashes.txt</span>
       </div>
     </div>
     <div class="analogy" style="margin-top:14px;">
@@ -1428,24 +1430,24 @@ Bob                    2026-05-24 11:12:49      ...<br></span>
     <div class="evidence-heading">Evidências reais // execução no Kali</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="../documentacao/prints/kali/01-ping-dc.png" alt="Ping do Kali para o Domain Controller" data-zoomable>
+        <img src="assets/prints/kali/01-ping-dc.png" alt="Ping do Kali para o Domain Controller" data-zoomable loading="lazy" decoding="async">
         <figcaption>O ping confirma comunicação IP com o DC em 172.24.173.229.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/kali/02-nslookup-lab-local.png" alt="Resolução DNS do domínio lab.local" data-zoomable>
+        <img src="assets/prints/kali/02-nslookup-lab-local.png" alt="Resolução DNS do domínio lab.local" data-zoomable loading="lazy" decoding="async">
         <figcaption>O DNS do DC resolve lab.local, requisito importante para o funcionamento correto do AD.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/kali/03-getadusers-alice.png" alt="Enumeração de usuários com GetADUsers" data-zoomable>
+        <img src="assets/prints/kali/03-getadusers-alice.png" alt="Enumeração de usuários com GetADUsers" data-zoomable loading="lazy" decoding="async">
         <figcaption>A conta comum Alice autentica e consulta usuários do domínio, incluindo svc_sql.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/kali/04-getuserspns-svc-sql.png" alt="Solicitação do TGS da conta svc_sql" data-zoomable>
+        <img src="assets/prints/kali/04-getuserspns-svc-sql.png" alt="Solicitação do TGS da conta svc_sql" data-zoomable loading="lazy" decoding="async">
         <figcaption>GetUserSPNs localiza o SPN, solicita o ticket e grava o material Kerberos em hashes.txt.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/kali/05-hashes-txt-gerado.png" alt="Arquivo hashes.txt contendo o hash Kerberos" data-zoomable>
-        <figcaption>O marcador $krb5tgs$ confirma que o TGS foi salvo em formato aceito pelo Hashcat.</figcaption>
+        <img src="assets/prints/kali/05-hashes-txt-gerado.png" alt="Arquivo hashes.txt contendo os dados cifrados do ticket Kerberos" data-zoomable loading="lazy" decoding="async">
+        <figcaption>O marcador $krb5tgs$ identifica a representação do ticket cifrado em formato aceito pelo Hashcat; o nome hashes.txt é uma convenção da ferramenta.</figcaption>
       </figure>
     </div>
   </div>
@@ -1531,15 +1533,15 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
     <div class="evidence-heading">Evidências reais // quebra offline</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="../documentacao/prints/kali/06-wordlist-lab.png" alt="Wordlist usada na prova de conceito" data-zoomable>
+        <img src="assets/prints/kali/06-wordlist-lab.png" alt="Wordlist usada na prova de conceito" data-zoomable loading="lazy" decoding="async">
         <figcaption>A wordlist contém poucas senhas candidatas, incluindo a senha fraca configurada no laboratório.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/kali/07-hashcat-cracked-password.png" alt="Hashcat mostrando o status Cracked" data-zoomable>
+        <img src="assets/prints/kali/07-hashcat-cracked-password.png" alt="Hashcat mostrando o status Cracked" data-zoomable loading="lazy" decoding="async">
         <figcaption>O modo 13100 identifica o TGS-REP e retorna Status: Cracked.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/kali/08-hashcat-show-password.png" alt="Hashcat exibindo a senha Password123" data-zoomable>
+        <img src="assets/prints/kali/08-hashcat-show-password.png" alt="Hashcat exibindo a senha Password123" data-zoomable loading="lazy" decoding="async">
         <figcaption>O comando --show relaciona o material Kerberos à senha Password123!, comprovando o risco.</figcaption>
       </figure>
     </div>
@@ -1579,7 +1581,7 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step gold">
-        <span class="fs-label">TGS cifrado</span>
+        <span class="fs-label">ticket de serviço cifrado</span>
         <span class="fs-name">hashes.txt</span>
       </div>
       <div class="flow-arrow">→</div>
@@ -1593,7 +1595,7 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
         <span class="fs-name">Domain Admins 💀</span>
       </div>
     </div>
-    <p style="color: var(--red); font-size: 13px; margin-top: 12px;">⚠️ A conta de alice foi comprometida (phishing / senha fraca) e usada como trampolim. Nenhum 0-day. Nenhum exploit. Só uma vítima desavisada, uma senha fraca de serviço e um privilégio excessivo — e o domínio inteiro caiu.</p>
+    <p style="color: var(--red); font-size: 13px; margin-top: 12px;">⚠️ No cenário simulado, a conta de Alice foi tratada como comprometida e usada como ponto de entrada. A senha fraca de svc_sql foi recuperada e, como a conta estava em Domain Admins, essa credencial poderia levar ao comprometimento do domínio. O laboratório não executou essa etapa final.</p>
   </div>
 
   <button class="btn-next" id="btn-phase3" onclick="completePhase(3)" disabled>Execute o comando para avançar</button>
@@ -1613,23 +1615,23 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
     <div class="evidence-heading">Evidências reais // aplicação do hardening</div>
     <div class="evidence-grid">
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/09-hardening-remover-domain-admins.gif" alt="Remoção de svc_sql do grupo Domain Admins" data-zoomable>
+        <img src="assets/prints/windows/09-hardening-remover-domain-admins.gif" alt="Remoção de svc_sql do grupo Domain Admins" data-zoomable loading="lazy" decoding="async">
         <figcaption>Menor privilégio: remoção de svc_sql do grupo Domain Admins.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/10-hardening-reset-senha-svc-sql.gif" alt="Redefinição da senha de svc_sql" data-zoomable>
+        <img src="assets/prints/windows/10-hardening-reset-senha-svc-sql.gif" alt="Redefinição da senha de svc_sql" data-zoomable loading="lazy" decoding="async">
         <figcaption>Rotação da credencial que foi recuperada durante a prova de conceito.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/11-hardening-account-options-svc-sql.png" alt="Opções de segurança da conta svc_sql" data-zoomable>
+        <img src="assets/prints/windows/11-hardening-account-options-svc-sql.png" alt="Opções de segurança da conta svc_sql" data-zoomable loading="lazy" decoding="async">
         <figcaption>Revisão das opções da conta para eliminar configurações inseguras.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/12-hardening-spn-ainda-existe.png" alt="SPN mantido após o hardening" data-zoomable>
-        <figcaption>O SPN pode continuar existindo quando o serviço ainda precisa dele; a defesa está na senha forte e no menor privilégio.</figcaption>
+        <img src="assets/prints/windows/12-hardening-spn-ainda-existe.png" alt="SPN mantido após o hardening" data-zoomable loading="lazy" decoding="async">
+        <figcaption>O SPN pode continuar existindo quando o serviço precisa dele; senha forte, menor privilégio, criptografia moderna e monitoramento reduzem o risco.</figcaption>
       </figure>
       <figure class="evidence-card">
-        <img src="../documentacao/prints/windows/13-hardening-evento-4769-kerberos.png" alt="Evento 4769 no Visualizador de Eventos" data-zoomable>
+        <img src="assets/prints/windows/13-hardening-evento-4769-kerberos.png" alt="Evento 4769 no Visualizador de Eventos" data-zoomable loading="lazy" decoding="async">
         <figcaption>O evento 4769 registra solicitações TGS e oferece telemetria para investigar padrões anormais.</figcaption>
       </figure>
     </div>
@@ -1673,14 +1675,14 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
         <div class="check-box" id="h2-box"></div>
         <div class="check-text">
           <div class="check-title">Trocar para senha longa, aleatória e única</div>
-          <div class="check-sub">Senhas de 25+ caracteres aleatórios tornam o cracking offline inviável mesmo com wordlists avançadas.</div>
+          <div class="check-sub">Senhas longas, aleatórias e exclusivas elevam fortemente o custo da quebra offline e retiram a conta de wordlists previsíveis.</div>
         </div>
       </li>
       <li onclick="checkItem(this, 'h3')">
         <div class="check-box" id="h3-box"></div>
         <div class="check-text">
           <div class="check-title">Migrar para gMSA (Group Managed Service Account)</div>
-          <div class="check-sub">O AD gerencia e rotaciona a senha automaticamente a cada 30 dias. Sem senha humana = sem risco de senha fraca.</div>
+          <div class="check-sub">O AD gerencia uma senha longa e aleatória e, por padrão, usa intervalo de 30 dias. Isso reduz muito o risco de senha humana fraca, sem eliminar a necessidade de proteger quem pode recuperar a senha gerenciada.</div>
         </div>
       </li>
       <li onclick="checkItem(this, 'h4')">
@@ -1694,28 +1696,28 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
         <div class="check-box" id="h5-box"></div>
         <div class="check-text">
           <div class="check-title">Monitorar Event ID 4769 — TGS Request</div>
-          <div class="check-sub">Solicitações TGS com tipo de criptografia RC4 (0x17) são indicador primário de Kerberoasting em progresso.</div>
+          <div class="check-sub">RC4 (0x17) em tickets de serviço merece investigação, principalmente quando combinado com volume, origem ou contas incomuns. Isoladamente, não prova Kerberoasting.</div>
         </div>
       </li>
       <li onclick="checkItem(this, 'h6')">
         <div class="check-box" id="h6-box"></div>
         <div class="check-text">
           <div class="check-title">Desabilitar criptografia RC4 onde possível</div>
-          <div class="check-sub">Exigir AES-128/AES-256 aumenta drasticamente o custo computacional para quebra offline.</div>
+          <div class="check-sub">Prefira AES após validar compatibilidade. AES aumenta o custo da quebra em relação ao RC4, mas senha forte e menor privilégio continuam indispensáveis.</div>
         </div>
       </li>
       <li onclick="checkItem(this, 'h7')">
         <div class="check-box" id="h7-box"></div>
         <div class="check-text">
           <div class="check-title">Auditar contas com senha que nunca expira</div>
-          <div class="check-sub">Senhas antigas ficam nos dicionários de breach. Rotação periódica é obrigatória para contas de serviço sem gMSA.</div>
+          <div class="check-sub">Para contas sem gMSA, defina uma política de senha longa e exclusiva, monitore exposição e faça rotação planejada quando necessário.</div>
         </div>
       </li>
       <li onclick="checkItem(this, 'h8')">
         <div class="check-box" id="h8-box"></div>
         <div class="check-text">
           <div class="check-title">Treinar usuários contra phishing e senhas fracas</div>
-          <div class="check-sub">Alice foi o ponto de entrada. Conscientização + MFA para usuários comuns elimina o principal vetor inicial do ataque.</div>
+          <div class="check-sub">No cenário, Alice representa uma credencial previamente comprometida. Conscientização e MFA reduzem phishing e abuso de senha, mas não substituem a proteção das contas de serviço.</div>
         </div>
       </li>
     </ul>
@@ -1726,7 +1728,7 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
 
   <div class="card">
     <div class="card-title"><span class="icon">🔍</span> Detecção — Event ID 4769</div>
-    <p style="margin-bottom: 12px; color: var(--muted);">Configure um filtro no Event Viewer para pegar Kerberoasting em tempo real:</p>
+    <p style="margin-bottom: 12px; color: var(--muted);">Com a política Audit Kerberos Service Ticket Operations habilitada no DC, use o evento 4769 para investigar solicitações TGS. O filtro abaixo é um exemplo inicial e deve ser correlacionado com conta, serviço, origem, volume e padrão histórico:</p>
     <div class="terminal">
       <div class="terminal-bar">
         <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
@@ -1748,7 +1750,7 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
   <div class="card">
     <div class="card-title"><span class="icon">📊</span> Antes × Depois do Hardening</div>
     <table>
-      <tr><th>Configuração</th><th>Antes (Vulnerável)</th><th>Depois (Seguro)</th></tr>
+      <tr><th>Configuração</th><th>Antes (Vulnerável)</th><th>Estado recomendado</th></tr>
       <tr>
         <td>Senha de svc_sql</td>
         <td style="color: var(--red);">Password123! (fraca)</td>
@@ -1762,12 +1764,12 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
       <tr>
         <td>Criptografia TGS</td>
         <td style="color: var(--red);">RC4 (0x17)</td>
-        <td style="color: var(--green);">AES-256 apenas</td>
+        <td style="color: var(--green);">AES preferido após validar compatibilidade</td>
       </tr>
       <tr>
         <td>Monitoramento</td>
         <td style="color: var(--red);">Nenhum</td>
-        <td style="color: var(--green);">Alerta no Event 4769</td>
+        <td style="color: var(--green);">4769 correlacionado com contexto e baseline</td>
       </tr>
       <tr>
         <td>Expiração de senha</td>
@@ -1808,7 +1810,7 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
       <div class="flow-arrow">→</div>
       <div class="flow-step gold">
         <span class="fs-label">Extração</span>
-        <span class="fs-name">TGS / hashes.txt</span>
+        <span class="fs-name">ticket / hashes.txt</span>
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step red">
@@ -1825,11 +1827,23 @@ Stopped: Thu Jun 25 18:30:28 2026</span>
 
   <div class="card">
     <div class="card-title"><span class="icon">💡</span> Mensagem Final</div>
-    <p style="font-size: 15px; line-height: 1.8;">Kerberoasting não é um exploit sofisticado. É um abuso de comportamento <em>legítimo</em> do protocolo Kerberos. O ponto de entrada foi a conta de uma usuária comum — alice — comprometida via phishing ou senha fraca. A partir daí, bastou requisitar um ticket público, quebrar a senha offline e usar o privilégio excessivo da conta de serviço. A defesa precisa atuar em <strong>todas as camadas</strong>: conscientização de usuários, senhas fortes, menor privilégio e monitoramento ativo.</p>
+    <p style="font-size: 15px; line-height: 1.8;">Kerberoasting não é um exploit sofisticado. É um abuso de comportamento <em>legítimo</em> do protocolo Kerberos. O ponto de entrada foi a conta de uma usuária comum — alice — comprometida via phishing ou senha fraca. A partir daí, bastou solicitar legitimamente um ticket de serviço, tentar recuperar a senha offline e explorar o privilégio excessivo da conta de serviço. A defesa precisa atuar em <strong>todas as camadas</strong>: conscientização de usuários, senhas fortes, menor privilégio e monitoramento ativo.</p>
     <div class="divider"></div>
     <p style="color: var(--muted); font-size: 13px;">🔬 Ambiente: lab.local · Hyper-V · Windows Server + Kali Linux<br>
     🛠️ Ferramentas: impacket, hashcat<br>
     📋 Escopo: laboratório acadêmico controlado</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📚</span> Referências técnicas</div>
+    <p style="color: var(--muted); font-size: 13px; margin-bottom: 12px;">Conteúdo revisado com base na especificação do Kerberos e na documentação oficial da Microsoft:</p>
+    <ul style="padding-left: 20px; display:grid; gap:10px; font-size:13px; line-height:1.5;">
+      <li><a href="https://www.rfc-editor.org/rfc/rfc4120" target="_blank" rel="noopener" style="color:var(--blue); overflow-wrap:anywhere;">RFC 4120 — Kerberos Network Authentication Service (V5)</a></li>
+      <li><a href="https://learn.microsoft.com/en-us/windows/win32/ad/service-principal-names" target="_blank" rel="noopener" style="color:var(--blue); overflow-wrap:anywhere;">Microsoft — Service Principal Names (SPNs)</a></li>
+      <li><a href="https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4769" target="_blank" rel="noopener" style="color:var(--blue); overflow-wrap:anywhere;">Microsoft — Audit event 4769</a></li>
+      <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/group-managed-service-accounts/group-managed-service-accounts/manage-group-managed-service-accounts" target="_blank" rel="noopener" style="color:var(--blue); overflow-wrap:anywhere;">Microsoft — Group Managed Service Accounts (gMSA)</a></li>
+      <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/advanced-audit-policy-configuration" target="_blank" rel="noopener" style="color:var(--blue); overflow-wrap:anywhere;">Microsoft — Advanced audit policy configuration</a></li>
+    </ul>
   </div>
 
   <div style="text-align:center; margin: 40px 0 60px;">
